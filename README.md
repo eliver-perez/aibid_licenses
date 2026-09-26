@@ -6,7 +6,7 @@ Servidor independiente en **PHP 8.3+ y MySQL 8**, con vistas PHP, Bootstrap 5 y 
 
 El panel permite administrar clientes y su contacto principal, productos, módulos, licencias perpetuas y suscripciones, compras de mantenimiento, renovaciones, credenciales comerciales y auditoría. Incluye bootstrap por CLI, roles, MFA obligatorio, recuperación de un solo uso, protección CSRF, reautenticación para acciones sensibles y transacciones idempotentes.
 
-**Alcance actual:** panel comercial y API online con los cuatro endpoints V1, desafíos de un solo uso, prueba Ed25519, firma JWS, una instalación activa por licencia, refresh y desactivación. Los cambios de derechos y la revocación comercial publican nuevas revisiones dentro de la misma transacción. El panel permite consultar instalaciones y descargar revisiones `.lic`. La importación/aprobación `.licreq`, transferencias forzadas, integración con el cliente real y despliegue VPS siguen pendientes en etapas 4–5; aún no constituye V1 completo.
+**Alcance actual:** etapas 1–4 implementadas. Panel comercial, cuatro endpoints V1, firmas Ed25519/JWS, una instalación activa, revisiones e idempotencia. El panel importa `.licreq`, permite asignar licencia, aprobar/rechazar, renovar o desactivar offline y descargar el `.lic` archivado. Incluye transferencia atómica y recuperación de equipo averiado con reautenticación y auditoría. La integración con el cliente real y el despliegue/operación del VPS corresponden a etapa 5; todavía no se declara V1 listo para producción.
 
 ## Ejecutar el panel
 
@@ -49,6 +49,8 @@ php bin/preflight.php --require-signer
 El entorno lo determina `APP_ENV`; usar claves y nombres distintos para desarrollo y producción. La CLI solo imprime la pública. `SIGNING_KEY_DIR` permite elegir un directorio absoluto y persistente fuera de `public/`; el valor predeterminado es `var/keys/<APP_ENV>`. Las privadas requieren permisos 0600 y acceso del usuario PHP dedicado. Sin firmante válido, las operaciones que necesitan una nueva firma fallan con 503 y se revierten; el panel y el refresh de una revisión existente siguen disponibles. Ver [OPERATIONS.md](OPERATIONS.md#8-claves-y-api-online-disponibles-en-etapa-3).
 
 ## Verificación
+
+Para operar offline, entra en **Solicitudes offline**, importa el `.licreq` y revisa su identidad. En una activación inicial selecciona cliente/licencia y pulsa **Revisar derechos** antes de aprobar. Una solicitud aprobada ofrece **Descargar .lic**; importar o volver a descargar no ejecuta otra activación. Actualización desde etapa 3 y recuperación de equipos en [OPERATIONS.md](OPERATIONS.md#9-operación-offline-y-actualización-a-etapa-4).
 
 ```sh
 composer test:unit

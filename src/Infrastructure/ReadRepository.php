@@ -41,6 +41,13 @@ final class ReadRepository
             }
             if (($filters['expiry'] ?? '') === 'soon') { $where[] = 'l.expires_at>=? AND l.expires_at<?'; $parameters[] = $this->clock->sql(); $parameters[] = $this->clock->now()->modify('+30 days')->format('Y-m-d H:i:s.u'); }
             if (($filters['expiry'] ?? '') === 'expired') { $where[] = 'l.expires_at<=?'; $parameters[] = $this->clock->sql(); }
+        } elseif ($kind === 'offline') {
+            $from = 'offline_requests o JOIN license_requests r ON r.product_id=o.product_id AND r.request_id=o.request_id LEFT JOIN offline_decisions d ON d.offline_id=o.id LEFT JOIN licenses l ON l.license_id=d.license_id LEFT JOIN customers c ON c.id=l.customer_id';
+            $select = "BIN_TO_UUID(o.id) AS id_text,BIN_TO_UUID(o.request_id) AS request_text,o.product_id,o.imported_at,r.action,COALESCE(d.decision,'pending') AS status,c.display_name AS customer_name";
+            $order = 'o.imported_at DESC,o.id';
+            if ($query !== '') { $where[] = '(BIN_TO_UUID(o.request_id) LIKE ? OR c.display_name LIKE ?)'; $parameters = ['%'.$query.'%','%'.$query.'%']; }
+            if (($filters['status'] ?? '') !== '') { $where[] = "COALESCE(d.decision,'pending')=?"; $parameters[] = $filters['status']; }
+            if (($filters['product_id'] ?? '') !== '') { $where[] = 'o.product_id=?'; $parameters[] = $filters['product_id']; }
         } elseif ($kind === 'audit') {
             $from = 'audit_events a LEFT JOIN admin_users u ON u.id=a.actor_id';
             $select = 'a.*,u.display_name AS actor_name';
@@ -81,7 +88,22 @@ final class ReadRepository
         $license['history'] = $this->db->all('SELECT c.*,u.display_name AS actor_name FROM license_changes c JOIN admin_users u ON u.id=c.admin_id WHERE c.license_id=? ORDER BY c.version DESC', [Uuid::bytes($id)]);
         $license['activations'] = $this->db->all('SELECT BIN_TO_UUID(activation_id) AS id_text,BIN_TO_UUID(installation_id) AS installation_text,state,activated_at,ended_at FROM activations WHERE license_id=? ORDER BY activated_at DESC LIMIT 50', [Uuid::bytes($id)]);
         $license['revisions'] = $this->db->all('SELECT BIN_TO_UUID(revision_id) AS id_text,BIN_TO_UUID(activation_id) AS activation_text,license_revision,kid,license_status,issued_at FROM license_revisions WHERE license_id=? ORDER BY license_revision DESC LIMIT 50', [Uuid::bytes($id)]);
+        $license['offline'] = $this->db->all("SELECT BIN_TO_UUID(o.id) AS id_text,r.action,COALESCE(d.decision,'pending') AS status,o.imported_at FROM offline_requests o JOIN license_requests r ON r.product_id=o.product_id AND r.request_id=o.request_id LEFT JOIN offline_decisions d ON d.offline_id=o.id WHERE d.license_id=? OR LOWER(JSON_UNQUOTE(JSON_EXTRACT(o.projection_json,'$.license_id')))=? ORDER BY o.imported_at DESC LIMIT 50", [Uuid::bytes($id),strtolower($id)]);
+        $license['transfers'] = $this->db->all('SELECT BIN_TO_UUID(t.outgoing_activation_id) AS outgoing_text,BIN_TO_UUID(t.incoming_activation_id) AS incoming_text,t.reason,t.created_at,u.display_name AS actor_name FROM license_transfers t JOIN admin_users u ON u.id=t.admin_id WHERE t.license_id=? ORDER BY t.created_at DESC LIMIT 50',[Uuid::bytes($id)]);
         return $license;
+    }
+
+    public function offline(string $id): array
+    {
+        $row = $this->db->one("SELECT BIN_TO_UUID(o.id) AS id_text,o.product_id,o.projection_json,o.imported_at,u.display_name AS importer_name,COALESCE(d.decision,'pending') AS status,BIN_TO_UUID(d.license_id) AS license_text,BIN_TO_UUID(d.revision_id) AS revision_text,d.reason,d.decided_at,a.display_name AS decider_name FROM offline_requests o JOIN admin_users u ON u.id=o.imported_by LEFT JOIN offline_decisions d ON d.offline_id=o.id LEFT JOIN admin_users a ON a.id=d.admin_id WHERE o.id=?",[Uuid::bytes($id)]) ?? throw new Problem('No se encontró la solicitud.',404);
+        $row['payload'] = json_decode($row['projection_json'],true,16,JSON_THROW_ON_ERROR);
+        unset($row['projection_json']);
+        return $row;
+    }
+
+    public function offlineCandidates(string $productId, string $query = ''): array
+    {
+        return $this->db->all("SELECT BIN_TO_UUID(l.license_id) AS id_text,l.license_type,l.expires_at,c.display_name AS customer_name FROM licenses l JOIN customers c ON c.id=l.customer_id WHERE l.product_id=? AND l.commercial_status='issued' AND (c.display_name LIKE ? OR BIN_TO_UUID(l.license_id) LIKE ?) ORDER BY c.display_name,l.license_id LIMIT 100",[$productId,'%'.$query.'%','%'.$query.'%']);
     }
 
     public function revision(string $licenseId, string $revisionId): array

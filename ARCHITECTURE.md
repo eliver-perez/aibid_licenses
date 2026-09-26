@@ -1,6 +1,6 @@
 # Arquitectura del servidor AIBID
 
-Estado: diseño completo por etapas; panel y persistencia administrativa implementados en etapa 2; activaciones y firma JWS online implementadas en etapa 3. Offline, integración del cliente real y operación VPS continúan pendientes. Contrato de referencia: [V1.0](LICENSE_CONTRACT.md). Registro de decisiones: [DECISIONS.md](DECISIONS.md).
+Estado: diseño completo por etapas; panel y persistencia administrativa implementados en etapa 2; activaciones y firma JWS online implementadas en etapa 3. La etapa 4 implementa solicitudes offline y recuperación/transferencia administrativa. Integración del cliente real y operación VPS continúan pendientes. Contrato de referencia: [V1.0](LICENSE_CONTRACT.md). Registro de decisiones: [DECISIONS.md](DECISIONS.md).
 
 ## 1. Límites del sistema
 
@@ -69,7 +69,7 @@ Cada emisión de un nuevo JWS toma el siguiente contador global de su licencia b
 | Objeto | Estados internos | Transiciones admitidas |
 | --- | --- | --- |
 | Licencia | `issued`, `revoked` | Emisión → `issued`; revocación comercial → `revoked`. Rehabilitación fuera de V1 del panel inicial |
-| Activación | `active`, `deactivated`, `revoked`, `transferred` | Creación → `active`; salida irreversible de esa activación por desactivación, revocación o transferencia |
+| Activación | `active`, `deactivated`, `revoked` | Creación → `active`; salida irreversible de esa activación por desactivación, revocación o transferencia |
 | Solicitud offline | `pending`, `approved`, `rejected` | Importación verificada → `pending`; decisión administrativa → estado terminal |
 | Desafío | disponible, consumido, vencido | Disponible → consumido tras prueba válida; vencimiento derivado de su instante límite |
 | Clave firmante | `staged`, `signing`, `verify_only`, `compromised` | Preparación → firma → solo verificación; incidente → comprometida |
@@ -162,4 +162,14 @@ Se verifica autorización en cada controlador y caso de uso. Ocultar una acción
 
 `LicenseService` llama al publicador al cambiar módulos, renovar, comprar mantenimiento o revocar una licencia con instalación activa. Guardar módulos idénticos y reemplazar una credencial comercial no crea otra firma. Las activaciones terminadas conservan su revisión terminal; una renovación posterior no vuelve a autorizar equipos retirados.
 
-El panel añade instalación activa/histórica y las últimas 50 revisiones descargables. La descarga requiere rol superadministrador u operador y entrega los bytes JWS archivados, sin regenerarlos ni crear una activación. La aprobación de solicitudes offline y transferencia forzada todavía no están disponibles.
+El panel añade instalación activa/histórica y las últimas 50 revisiones descargables. La descarga requiere rol superadministrador u operador y entrega los bytes JWS archivados, sin regenerarlos ni crear una activación. La etapa 4 conecta la aprobación offline y transferencia forzada a este mismo publicador.
+
+## 9. Implementación de etapa 4
+
+`Domain/OfflineRequest` verifica formato, firma exacta y campos tipados; devuelve una proyección sin clave comercial. `OfflineService` reserva el espacio compartido de requests, cifra el original, procesa decisiones y recuperaciones. Reutiliza `Operations`, `RevisionPublisher` y la renovación comercial de `LicenseService`, dentro de una sola transacción PDO. Las funciones internas de renovación exigen una transacción; el caso de uso externo aplica rol, idempotencia y bloqueo de producto/licencia antes de invocarlas.
+
+`offline_requests` conserva evidencia y proyección inmutables. `offline_decisions` contiene una única decisión por solicitud y referencia a su revisión. El estado pendiente se deriva de la ausencia de decisión; no se sobrescribe el original para aprobarlo. `license_transfers` registra origen/destino, motivo y aceptación del límite offline. El estado interno de una retirada forzada es `revoked`; una desactivación firmada usa `deactivated`. Ambas producen el JWS terminal `revoked` de B-01 y dejan la licencia comercial emitida.
+
+El panel permite entregar derechos actuales mediante `renew` sin inventar una ampliación. Para ampliar una suscripción exige fecha futura superior a la anterior y referencia comercial explícita; para una perpetua, cualquier compra de mantenimiento sigue siendo una operación comercial separada. Una transferencia desde una solicitud de destino retira origen y activa destino atómicamente. La recuperación sin solicitud de destino solo libera la plaza; una activación posterior vuelve a competir por ella con las reglas normales.
+
+No se agregaron rutas públicas V1. Las rutas nuevas pertenecen a `/admin/offline` y la recuperación al detalle de licencia. La consulta puede ver historial/proyecciones; únicamente operador/superadministrador importan, deciden y descargan. Transferir forzadamente exige superadministrador y reautenticación con contraseña y TOTP nuevo en cada POST.

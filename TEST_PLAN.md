@@ -1,6 +1,6 @@
 # Plan verificable y contrato de pruebas
 
-Etapas 1–3: vectores criptográficos, panel administrativo y protocolo online PHP/MySQL con pruebas ejecutables. La sección 8 enumera el alcance verificado de activación/JWS; offline, integración con el cliente real y VPS continúan pendientes.
+Etapas 1–4: vectores criptográficos, panel administrativo, protocolo online y operación offline PHP/MySQL con pruebas ejecutables. Las secciones 8 y 9 enumeran la evidencia de activación/JWS, solicitudes offline y transferencias. La integración con el cliente real y el VPS continúan pendientes.
 
 ## 1. Paquete compartido V1
 
@@ -146,7 +146,7 @@ Capturas generadas en `var/screenshots/`: `login-desktop.png`, `dashboard-deskto
 - `composer validate --strict --no-check-publish` aprobado; el gestor instalado emite avisos de deprecación propios al ejecutarse con PHP 8.5. La consulta de Composer no reportó avisos de vulnerabilidades para el lock en esta fecha.
 - Contrato original y anexo conservan sus hashes registrados; los cuatro SVG coinciden exactamente con los originales.
 - Cinco JWS, tres proofs, tres solicitudes offline y tres negativos siguen coincidiendo con el oráculo Go. El servidor sigue siendo exclusivamente PHP.
-- Falta comprobar el binario PHP-FPM/TLS del VPS, respaldos y restauración real, límites del proxy, firma/activación/offline y compatibilidad con el cliente real. No se presenta ninguna de esas matrices futuras como aprobada.
+- Al cerrar etapa 2 faltaba comprobar firma/activación/offline; su evidencia está en las secciones 8 y 9. Continúan pendientes PHP-FPM/TLS del VPS, respaldo/restauración real, límites del proxy y compatibilidad con el cliente real.
 
 ## 8. Evidencia de etapa 3
 
@@ -170,6 +170,32 @@ El recorrido de Chrome también pasó con el historial de una instalación real 
 
 Preflight con `--require-signer` aprobado y cadena de 20 eventos de la fixture visual verificada. El oráculo Go sigue verificando cinco JWS, tres proofs, tres solicitudes offline y tres negativos; esto valida interoperabilidad de bytes con ese oráculo, no el verificador real del gestor documental.
 
-La configuración `config/local.php` que apareció después de etapa 2 se conservó y no se usó para migrar/probar. Las pruebas crean sus propias configuraciones temporales. Offline, recuperación forzada, integración real del cliente, PHP-FPM/TLS del VPS, respuestas del proxy y restauración operativa siguen pendientes. La retirada de una instalación desconectada no implica borrado remoto ni revocación instantánea.
+La configuración `config/local.php` que apareció después de etapa 2 se conservó y no se usó para migrar/probar. Las pruebas crean sus propias configuraciones temporales. Al cerrar etapa 3 seguían pendientes offline y recuperación; la sección siguiente registra su implementación. Integración real del cliente, PHP-FPM/TLS del VPS, respuestas del proxy y restauración operativa siguen pendientes. La retirada de una instalación desconectada no implica borrado remoto ni revocación instantánea.
+
+## 9. Evidencia de etapa 4
+
+El 2026-09-26, PHP 8.5.7 / MySQL 8.4.11 aislado: **92 pruebas, 527 aserciones**, sin errores, fallos, advertencias ni omisiones. Son 37 casos unitarios y 55 de integración. La cuenta SQL de cada fixture aplica los mismos GRANT restringidos del runtime. Se validó sintaxis de 84 archivos PHP de aplicación, pruebas, CLI y contrato; los dos scripts de navegador nuevos/modificados pasan `node --check`.
+
+Cobertura nueva:
+
+- Firma exacta LICREQ-V1, fixtures originales, base64url, tipos, versión, tamaño, claves JSON duplicadas, UTC/calendario, UUIDv4 e identidad. Un archivo antiguo válido se importa sin conceder prórroga.
+- Original cifrado, proyección sin credencial, importación equivalente, payload alterado con misma ID, firma inválida sin reserva y reserva compartida entre canales, pendiente o completada.
+- Asignación explícita, rechazo, replay del mismo formulario y conflicto de una segunda decisión. Consulta no importa/descarga; operador no fuerza transferencia y un Actor desactualizado no suplanta el rol vigente en BD.
+- Renovación de suscripción con fechas explícitas, periodos/historia y 15 días; renovación perpetua sin mantenimiento automático; identidad ajena/alterada y activación retirada rechazadas; versión comercial obsoleta y licencia revocada bloquean aprobación.
+- Desactivación firmada seguida de nueva activación, recuperación sin destino, transferencia atómica con nueva identidad, revisión terminal recuperable por refresh y contador global sin reutilización.
+- Fallo de firma por privada ausente, ciphertext manipulado, error después de retirar origen y fallo de auditoría después de publicar: rollback sin plaza perdida, revisión parcial ni decisión confirmada.
+- SQL prohíbe UPDATE/DELETE de las tres tablas nuevas. Migraciones desde etapas 2/3 conservan datos. Dos procesos simultáneos prueban doble aprobación y competencia API/offline con una única plaza.
+
+`npm run test:panel` también verifica con Chrome: upload real multipart, archivo inválido/grande, CSRF y Origin, importación duplicada, selección/revisión comercial, `.lic` descargado byte a byte, renovación offline, transferencia con contraseña/TOTP (contraseña incorrecta rechazada), desactivación, rechazo y denegación a consulta. Se comprobaron escritorio y móvil a 390 px, sin errores de consola. Capturas sin secretos en `offline-review-desktop.png`, `offline-review-mobile.png` y `offline-approved-desktop.png`; se desactivan animaciones solo al capturar para evitar imágenes a mitad de una transición de tamaño.
+
+Preflight con firmante y cadena de 35 eventos de la fixture visual aprobados. `generate-fixtures.php --check` sigue verificando los cinco JWS, tres proofs, tres `.licreq` y tres negativos originales. Los hashes del prompt y anexo literal y los cuatro SVG siguen intactos. La verificación con el cliente real y las pruebas operativas del VPS pertenecen a etapa 5, no a esta evidencia.
+
+Para repetir únicamente esta cobertura PHP, usar la instancia aislada y ejecutar:
+
+```sh
+env TEST_MYSQL_DSN='mysql:unix_socket=/ruta/mysql.sock;charset=utf8mb4' php vendor/bin/phpunit --filter Offline
+```
+
+Para el navegador, crear una fixture nueva con `tests/prepare-panel.php`, iniciar el servidor con `AIBID_CONFIG` temporal y ejecutar `npm run test:panel` según la sección 7. La fixture debe ser nueva porque el recorrido enrola MFA y consume los códigos TOTP. No cambiar el archivo real de configuración para probar.
 
 Las fixtures de servicios usan configuración explícita sin heredar variables SQL de runtime. Los servidores HTTP de prueba eliminan esas variables heredadas; la configuración generada del panel hace lo mismo antes de abrir su conexión. Una prueba adicional verifica que DB_DSN de otra instalación no sustituya el DSN aislado.

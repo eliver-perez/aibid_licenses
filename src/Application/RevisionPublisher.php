@@ -44,7 +44,7 @@ final class RevisionPublisher
         $this->db->execute('INSERT INTO license_revisions(revision_id,license_id,activation_id,license_revision,kid,license_status,issued_at,payload_json,license_jws,jws_sha256) VALUES (?,?,?,?,?,?,?,?,?,?)', [$revisionId,$licenseId,$activationId,$revision,$signed['kid'],$payload['license_status'],$now,Protocol::json($payload),$signed['jws'],hash('sha256',$signed['jws'])]);
         $this->db->execute('UPDATE licenses SET revision_counter=? WHERE license_id=?', [$revision,$licenseId]);
         $this->db->execute('UPDATE activations SET current_revision_id=? WHERE activation_id=?', [$revisionId,$activationId]);
-        return ['revision'=>$revision,'jws'=>$signed['jws']];
+        return ['revision'=>$revision,'revision_id'=>Uuid::text($revisionId),'jws'=>$signed['jws']];
     }
 
     public function commercialChange(string $licenseId, bool $revoke): void

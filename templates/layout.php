@@ -17,7 +17,7 @@
         <a class="sidebar-brand" href="/admin"><img src="/assets/brand/logo-dark-v.svg" alt="AIBID · Aplicación de Indexación de Bibliotecas Digitales"></a>
         <div class="sidebar-caption">ADMINISTRACIÓN DE LICENCIAS</div>
         <nav class="sidebar-nav">
-        <?php foreach (['/admin' => ['Resumen','◫'], '/admin/licenses' => ['Licencias','⌘'], '/admin/customers' => ['Clientes','◎'], '/admin/products' => ['Productos','◇'], '/admin/audit' => ['Auditoría','≡']] as $href => [$label,$symbol]): $active = $href === '/admin' ? $path === $href : str_starts_with($path, $href); ?>
+        <?php foreach (['/admin' => ['Resumen','◫'], '/admin/licenses' => ['Licencias','⌘'], '/admin/offline' => ['Solicitudes offline','⇄'], '/admin/customers' => ['Clientes','◎'], '/admin/products' => ['Productos','◇'], '/admin/audit' => ['Auditoría','≡']] as $href => [$label,$symbol]): $active = $href === '/admin' ? $path === $href : str_starts_with($path, $href); ?>
             <a href="<?= $href ?>" class="nav-item <?= $active ? 'active' : '' ?>" <?= $active ? 'aria-current="page"' : '' ?>><span class="nav-symbol" aria-hidden="true"><?= $symbol ?></span><?= $label ?></a>
         <?php endforeach; ?>
         <?php if ($actor->role === 'superadmin'): ?><div class="sidebar-caption mt-4">CONFIGURACIÓN</div><a href="/admin/users" class="nav-item <?= str_starts_with($path, '/admin/users') ? 'active' : '' ?>"><span class="nav-symbol" aria-hidden="true">⊞</span>Administradores</a><?php endif; ?>

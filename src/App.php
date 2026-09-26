@@ -2,7 +2,7 @@
 declare(strict_types=1);
 namespace Aibid;
 
-use Aibid\Application\{ActivationService, AdminService, AuthService, CatalogService, LicenseService, Operations, RevisionPublisher};
+use Aibid\Application\{ActivationService, AdminService, AuthService, CatalogService, LicenseService, OfflineService, Operations, RevisionPublisher};
 use Aibid\Infrastructure\{Audit, Clock, Crypto, Database, RateLimiter, ReadRepository, Sessions, SigningKeys, Totp};
 
 final class App
@@ -21,6 +21,7 @@ final class App
     public readonly RevisionPublisher $publisher;
     public readonly ActivationService $activations;
     public readonly RateLimiter $rate;
+    public readonly OfflineService $offline;
 
     public function __construct(public readonly Config $config, public readonly Database $db, ?Clock $clock = null)
     {
@@ -38,6 +39,7 @@ final class App
         $operations = new Operations($db, $this->crypto, $this->clock);
         $this->catalog = new CatalogService($db, $operations, $this->audit, $this->clock);
         $this->licenses = new LicenseService($db, $operations, $this->audit, $this->clock, $this->crypto, $this->publisher);
+        $this->offline = new OfflineService($db, $operations, $this->audit, $this->clock, $this->crypto, $this->publisher, $this->licenses);
         $this->admins = new AdminService($db, $operations, $this->auth, $this->audit, $this->clock);
         $this->read = new ReadRepository($db, $this->clock);
     }

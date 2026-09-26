@@ -1,6 +1,6 @@
 # Operación del panel y despliegue previsto
 
-Las etapas 2 y 3 incluyen panel administrativo, API online y gestión CLI de claves de firma. Se verificaron con MySQL 8.4.11 aislado y PHP 8.5.7 CLI; no se modificaron XAMPP ni sus bases y no se desplegó en un VPS. Offline, restauración operativa completa y publicación corresponden a etapas 4–5. Las secciones 7 y 8 contienen los pasos ejecutables actuales.
+Las etapas 2–4 incluyen panel administrativo, API online, gestión CLI de firmantes y operación offline con transferencias. Se verificaron con MySQL 8.4.11 aislado y PHP 8.5.7 CLI; no se modificaron XAMPP ni sus bases y no se desplegó en un VPS. La integración del cliente real, restauración operativa completa y publicación corresponden a etapa 5. Las secciones 7–9 contienen los pasos ejecutables actuales.
 
 ## 1. Entorno observado
 
@@ -151,3 +151,28 @@ Si la BD pierde conexión durante el registro de una clave, la CLI conserva el a
 Las cuatro rutas V1 ya están disponibles. El panel no requiere un firmante para emitir derechos comerciales sin activación. Activar, modificar derechos activos y desactivar requieren una nueva firma; si no hay firmante o falla su archivo, el servidor devuelve 503 y revierte el efecto completo. Refresh reutiliza un JWS existente y no requiere leer la privada.
 
 `php bin/preflight.php --require-signer` comprueba configuración, motor, migraciones/checksums, permisos inmutables en producción y firmante de licencias del entorno. No sustituye las pruebas de PHP-FPM, TLS/proxy, límites y respuestas JSON del proxy, sincronización del reloj, respaldo/restauración e integración con el cliente real previstas para el VPS.
+
+## 9. Operación offline y actualización a etapa 4
+
+Para una instalación de etapa 3, conservar `config/local.php`, todas sus claves y el directorio de firmantes. Aplicar `004_offline_requests.sql` con el migrador y actualizar GRANT de runtime:
+
+```sh
+php bin/migrate.php --user=aibid_migrate
+php bin/grants.php --database=aibid_licenses --user=aibid_app
+# Aplicar el SQL generado mediante la cuenta administradora de esta BD.
+php bin/preflight.php --require-signer
+php bin/audit-verify.php
+```
+
+No repetir configure/bootstrap ni generar otra clave de firma si ya hay una válida y distribuida. La evidencia usa HKDF desde el `CREDENTIAL_KEY` existente; no exige añadir secretos ni modificar la configuración. Conservar esa raíz junto con los respaldos recuperables. La migración agrega tablas sin modificar licencias/revisiones previas y se probó con historia online existente.
+
+El ejemplo Nginx permite cuerpos de 96 KiB para el multipart; la aplicación sigue limitando archivos a 64 KiB y JSON de API a 16 KiB. En PHP-FPM configurar `file_uploads=On`, `upload_max_filesize` al menos 64 KiB y `post_max_size` al menos 96 KiB. El directorio temporal de uploads debe ser privado al usuario de PHP. Comprobar estos límites reales en etapa 5.
+
+1. Pedir al cliente su `.licreq`, preferentemente sin clave comercial. Entrar en **Solicitudes offline** e importarlo. Se comprueba firma/formato y queda pendiente; no se ocupan plazas.
+2. Revisar producto, instalación, pública/huella y fecha declarada. Para activar, buscar cliente/licencia, seleccionarla y pulsar **Revisar derechos**. El producto debe coincidir; una clave comercial contenida en el archivo no reemplaza esta asignación.
+3. Aprobar con motivo o rechazar con motivo. Para una renovación se pueden emitir derechos ya contratados; para ampliar una suscripción elegir la ampliación y registrar fecha UTC futura y referencia comercial. El mantenimiento perpetuo se compra/registra por separado en la licencia.
+4. Descargar `.lic` y entregarlo únicamente a su instalación. El archivo es el JWS original de la decisión, sin envoltura y sin nueva firma al descargar. Consultar la licencia si pudo recibir revisiones posteriores. El cliente debe verificarlo con una pública previamente confiable.
+5. Para mover un equipo operativo, aprobar su desactivación firmada (o usar la API online) y luego activar el nuevo equipo. La revisión de salida está revocada; la licencia comercial permanece emitida.
+6. Para equipo averiado, un superadministrador puede aprobar la solicitud de destino marcando la transferencia, con contraseña/TOTP nuevo, motivo y aceptación de que una copia offline no se revoca instantáneamente. Ambas firmas y el cambio de plaza se confirman juntos. Sin archivo de destino, usar **Recuperar plaza por equipo averiado** en el detalle de licencia; la plaza queda disponible para una activación posterior.
+
+Ante error 503, no asumir commit fallido: consultar la solicitud y su historial antes de repetir. Reutilizar la operación original cuando corresponda; si ya se decidió, descargar el resultado registrado. Ante 409, recargar/revisar la solicitud o licencia; no cambiar arbitrariamente el request firmado. Ni cleanup ni el operador pueden borrar evidencia, decisiones, transferencias o resultados de idempotencia.

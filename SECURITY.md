@@ -1,6 +1,6 @@
 # Seguridad y modelo de amenazas
 
-Diseño de seguridad completo por etapas. Autenticación, MFA, sesiones, CSRF, permisos y auditoría administrativa ya se implementaron en etapa 2. Los controles online de activación/firma ya están implementados en etapa 3; offline y operación VPS siguen pendientes. El contrato público se conserva en [LICENSE_CONTRACT.md](LICENSE_CONTRACT.md); los detalles de protocolo están en [API.md](API.md).
+Diseño de seguridad completo por etapas. Autenticación, MFA, sesiones, CSRF, permisos y auditoría administrativa ya se implementaron en etapa 2. Los controles online de activación/firma ya están implementados en etapa 3; la etapa 4 incorpora validación, archivo cifrado y decisión offline. La operación VPS sigue pendiente. El contrato público se conserva en [LICENSE_CONTRACT.md](LICENSE_CONTRACT.md); los detalles de protocolo están en [API.md](API.md).
 
 ## 1. Activos, actores y límites de confianza
 
@@ -64,7 +64,7 @@ Escapar HTML por contexto, sin imprimir JSON o motivos en `innerHTML`. Bootstrap
 
 ## 6. Límites de tasa y errores
 
-Etapa 2: ventanas fijas de 15 minutos; login 5 intentos por cuenta y 20 por IP; MFA 10 por cuenta y 20 por IP; reautenticación 10 por cuenta. Se cuentan todos los intentos, también los correctos. No se implementó espera progresiva. La cuenta puede intentar nuevamente en la ventana siguiente o recurrir a recuperación CLI. Ajustar con medición y monitorizar falsos positivos en IP compartidas. Etapa 3 implementa desafíos y operaciones a 30/min por IP (contadores separados), más 30/min por pública autenticada/producto. La importación offline de etapa 4 mantiene como propuesta 20/min por administrador.
+Etapa 2: ventanas fijas de 15 minutos; login 5 intentos por cuenta y 20 por IP; MFA 10 por cuenta y 20 por IP; reautenticación 10 por cuenta. Se cuentan todos los intentos, también los correctos. No se implementó espera progresiva. La cuenta puede intentar nuevamente en la ventana siguiente o recurrir a recuperación CLI. Ajustar con medición y monitorizar falsos positivos en IP compartidas. Etapa 3 implementa desafíos y operaciones a 30/min por IP (contadores separados), más 30/min por pública autenticada/producto. La importación offline aplica 30 intentos/min por administrador, antes de leer/verificar el archivo.
 
 El despliegue final deberá configurar la barrera de Nginx por ruta/IP; en etapa 2 la app aplica ventanas atómicas por cuenta/identidad en MySQL. Los contadores de intentos se confirman fuera de la transacción de negocio para que un rollback no los borre. Etapa 2 utiliza REMOTE_ADDR e ignora encabezados reenviados; termina TLS directamente en Nginx. El soporte de proxy deberá validar explícitamente sus emisores antes de confiar en `X-Forwarded-For`. No usar `installation_id` autoafirmado como única defensa de tasa.
 
@@ -90,7 +90,7 @@ Si el ancla no está disponible, no inventar automáticamente otra huella al arr
 
 Allowlist de logs: correlación, ruta, código, duración, actor interno y referencias opacas. Nunca request/response completos de activación, cabeceras Cookie/Authorization, claves comerciales, privadas, TOTP, códigos de recuperación ni PDFs/rutas/OCR. Los JWS y `.licreq` son registros protegidos de negocio, no mensajes de log.
 
-Archivar `.licreq` con AEAD XChaCha20-Poly1305 de Sodium, nonce aleatorio por archivo y versión de clave, autenticando también producto/request como datos asociados. Esto permite conservar una firma válida si un cliente incluyó una clave comercial opcional sin almacenarla en claro ni exponerla en proyecciones. Recomendar siempre generar archivos sin esa clave. La misma disciplina de cifrado autenticado y nonce único se aplica a los secretos TOTP, con otra clave. [PHP: cifrado autenticado XChaCha20-Poly1305](https://www.php.net/manual/en/function.sodium-crypto-aead-xchacha20poly1305-ietf-encrypt.php).
+Archivar `.licreq` con AEAD XChaCha20-Poly1305 de Sodium, nonce aleatorio por archivo y versión de cifrado. Los datos asociados son `offline:v1:<UUID interno de evidencia>`; el HMAC de la reserva vincula producto/request y todos los bytes firmados. Esto permite conservar una firma válida si un cliente incluyó una clave comercial opcional sin almacenarla en claro ni exponerla en proyecciones. Recomendar siempre generar archivos sin esa clave. La misma disciplina de cifrado autenticado y nonce único se aplica a los secretos TOTP, con otra clave. [PHP: cifrado autenticado XChaCha20-Poly1305](https://www.php.net/manual/en/function.sodium-crypto-aead-xchacha20poly1305-ietf-encrypt.php).
 
 Motivos administrativos tienen longitud limitada y aviso de no incluir secretos. Auditoría registra emisión, cambios de módulos, mantenimiento, periodos, importación y decisiones offline, transferencias, revocaciones, login/logout, cambios de rol, MFA y claves. Eventos de éxito se confirman con el cambio; intentos fallidos de acceso tienen registro independiente sin secretos.
 
@@ -100,7 +100,7 @@ Política propuesta: logs técnicos/IP 30 días, auditoría y evidencia de derec
 
 CSP sirve scripts y estilos propios; permite imágenes data únicamente para el QR. Las respuestas dinámicas llevan `Cache-Control: no-store`, `nosniff`, prohibición de framing y `Referrer-Policy: same-origin`: conserva Origin en formularios del propio sitio sin enviar referencias a sitios externos. Cada POST valida CSRF y, si viene Origin, exige el origen exacto configurado. Se rechaza `Origin: null`.
 
-Producción exige HTTPS y cookie `__Host-license_admin`; solo development/testing permite HTTP de loopback y usa `aibid_admin_dev`. APP_URL es un origen sin subdirectorio. `config/local.php` se genera con permisos 0600 y cinco secretos independientes; el repositorio no contiene configuración real. No reemplazar esas claves al actualizar: MFA, búsquedas comerciales, idempotencia y auditoría dependen de ellas.
+Producción exige HTTPS y cookie `__Host-license_admin`; solo development/testing permite HTTP de loopback y usa `aibid_admin_dev`. APP_URL es un origen sin subdirectorio. `config/local.php` se genera con permisos 0600 y cinco secretos independientes; la configuración real queda excluida de distribución y no se usa en las pruebas. No reemplazar esas claves al actualizar: MFA, búsquedas comerciales, idempotencia y auditoría dependen de ellas.
 
 La cuenta SQL de aplicación tiene SELECT/INSERT, sin UPDATE/DELETE, sobre auditoría, historial, periodos y mantenimiento. La verificación de cadena por CLI permite exportar un anclaje; su almacenamiento externo y los respaldos del VPS aún deben configurarse. No se afirma resistencia frente a un administrador de BD con acceso conjunto a todos los secretos.
 
@@ -113,3 +113,11 @@ Las claves privadas están en archivos 0600 bajo un directorio absoluto fuera de
 La publicación mantiene bloqueo compartido del ámbito firmante hasta commit. La rotación selecciona la nueva clave bajo bloqueo exclusivo, conserva las públicas antiguas y no cambia JWS ya archivados. Un refresh existente puede responder aunque no esté accesible la privada: no necesita refirmar. Activar, cambiar derechos o retirar una activación requiere guardar su nueva firma; si falla, se revierte incluso la liberación de plaza.
 
 No hay claves de producción generadas en esta entrega ni configuración local reemplazada. Los tests crean claves aleatorias temporales y usuarios SQL aislados. La prueba de rechazo en producción solo cambia la etiqueta de entorno dentro de una fixture; no utiliza servicios productivos.
+
+## 11. Evidencia y autorizaciones offline de etapa 4
+
+El cifrado de evidencia usa una clave de 32 bytes derivada por HKDF-SHA256 desde `CREDENTIAL_KEY`, con info exacta `aibid/offline-evidence/v1`, salt vacío y nonce aleatorio de 24 bytes. Es una clave criptográfica distinta a la del HMAC comercial y al cifrado MFA; comparte raíz de recuperación con `CREDENTIAL_KEY`. Esta decisión permite actualizar sin reemplazar ni generar secretos en la configuración existente. Su compromiso afecta también la evidencia: debe respaldarse/protegerse la raíz y no rotarla sin migrar los originales cifrados y las credenciales. No existe rotación automática en esta entrega.
+
+La app verifica Ed25519 antes de reservar una importación y otra vez sobre los bytes originales descifrados al aprobar. Contrasta el HMAC de la reserva y el vínculo de instalación/clave/huella/licencia/producto. Evidencia, decisión y transferencia solo admiten INSERT en SQL de runtime. Una clave comercial opcional no autoriza ni aparece en las vistas, proof archivado, auditoría o resultado idempotente. El archivo temporal de PHP no se mueve a public/, y el nombre/MIME enviados no determinan rutas ni validez.
+
+Todos los formularios nuevos usan sesión MFA, rol, CSRF y Origin. Multipart solo se admite en importación, con límites propios de cuerpo/archivo y 30 intentos por minuto por administrador. La recuperación y transferencia forzada exigen superadministrador, contraseña y TOTP sin reutilizar, motivo y aceptación explícita de la limitación offline. Si falla alguna firma o escritura, la plaza anterior permanece activa. Las solicitudes terminales no se purgan ni se rehabilitan mediante una segunda decisión.

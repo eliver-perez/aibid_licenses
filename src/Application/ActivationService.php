@@ -24,7 +24,7 @@ final class ActivationService
         $requestBytes = Uuid::bytes($input['request_id']);
         $digest = $this->crypto->digest('OPERATION_KEY', 'protocol-v1:online:' . $action . "\n" . Protocol::json($input));
         $saved = $this->db->one('SELECT * FROM license_requests WHERE product_id=? AND request_id=?', [$input['product_id'],$requestBytes]);
-        if ($saved && $saved['response_body'] !== null) {
+        if ($saved && $saved['channel'] === 'online' && $saved['response_body'] !== null) {
             $this->authenticateSaved($saved, $input, $action, $digest);
             $this->limitIdentity($input, $saved['public_key']);
             return new ApiResponse((int)$saved['response_status'], $saved['response_body']);
@@ -107,6 +107,8 @@ final class ActivationService
 
     private function authenticateSaved(array $record, array $input, string $action, string $digest): void
     {
+        // Cross-channel attempts reach here only after their own online proof was verified.
+        if ($record['channel'] !== 'online') { throw new ApiProblem('INVALID_REQUEST', 409); }
         $this->verify($input['proof'], $record['proof_message'], $record['public_key']);
         if ($record['channel'] !== 'online' || $record['action'] !== $action || (int)$record['digest_key_version'] !== 1 || !hash_equals($record['input_digest'], $digest)) { throw new ApiProblem('INVALID_REQUEST', 409); }
     }

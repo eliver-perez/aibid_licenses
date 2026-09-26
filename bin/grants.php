@@ -19,6 +19,7 @@ consoleRun(function (): void {
         'activations'=>'SELECT,INSERT,UPDATE (state,ended_at,current_revision_id)',
         'license_revisions'=>'SELECT,INSERT', 'activation_challenges'=>'SELECT,INSERT,UPDATE,DELETE',
         'license_requests'=>'SELECT,INSERT,UPDATE',
+        'offline_requests'=>'SELECT,INSERT', 'offline_decisions'=>'SELECT,INSERT', 'license_transfers'=>'SELECT,INSERT',
     ];
     foreach ($permissions as $table => $privileges) { fwrite(STDOUT, "GRANT $privileges ON `$database`.`$table` TO '$user'@'localhost';\n"); }
 });

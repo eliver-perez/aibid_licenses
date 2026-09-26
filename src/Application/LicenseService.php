@@ -65,11 +65,7 @@ final class LicenseService
                 $rightsChanged = $previous !== $features;
                 $this->writeFeatures($bytes, $productId, $catalog, $features);
             } elseif ($action === 'renew') {
-                if ($license['license_type'] !== 'subscription') { throw new Problem('Solo las suscripciones tienen renovación de vigencia.'); }
-                $instant = $date->format('Y-m-d H:i:s.u');
-                if ($instant <= $license['expires_at'] || $date <= $this->clock->now()) { throw new Problem('El nuevo vencimiento debe extender la vigencia anterior y ser futuro.'); }
-                $this->db->execute('UPDATE licenses SET expires_at=?,entitled_release_until=? WHERE license_id=?', [$instant, $instant, $bytes]);
-                $this->period($actor, $bytes, $license['expires_at'], $instant, $reference, $reason);
+                $this->renewTerms($actor, $license, $date, $reference, $reason);
             } elseif ($action === 'maintenance') {
                 if ($license['license_type'] !== 'perpetual') { throw new Problem('El mantenimiento separado corresponde a licencias perpetuas.'); }
                 $instant = $date->format('Y-m-d H:i:s.u');
@@ -88,6 +84,24 @@ final class LicenseService
             $this->record($actor, $id, 'license.' . $action, $reason, $reference);
             return $result;
         });
+    }
+
+    /** Internal transaction primitive: caller authorizes and locks product/license first. */
+    public function renewTerms(Actor $actor, array $license, \DateTimeImmutable $date, string $reference, string $reason): void
+    {
+        if (!$this->db->pdo->inTransaction()) { throw new \LogicException('Renewal requires a transaction.'); }
+        if ($license['license_type'] !== 'subscription') { throw new Problem('Solo las suscripciones tienen renovación de vigencia.'); }
+        $instant = $date->format('Y-m-d H:i:s.u');
+        if ($instant <= $license['expires_at'] || $date <= $this->clock->now()) { throw new Problem('El nuevo vencimiento debe extender la vigencia anterior y ser futuro.'); }
+        $this->db->execute('UPDATE licenses SET expires_at=?,entitled_release_until=? WHERE license_id=?', [$instant, $instant, $license['license_id']]);
+        $this->period($actor, $license['license_id'], $license['expires_at'], $instant, $reference, $reason);
+    }
+
+    /** Called last, after offline publication and decision, with the license still locked. */
+    public function recordOfflineRenewal(Actor $actor, string $id, string $reason, string $reference): void
+    {
+        if (!$this->db->pdo->inTransaction()) { throw new \LogicException('Renewal history requires a transaction.'); }
+        $this->record($actor, $id, 'license.renew', $reason, $reference);
     }
 
     private function featureInput(array $input): array

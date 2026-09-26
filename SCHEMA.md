@@ -1,6 +1,6 @@
 # Modelo de datos y transacciones
 
-Estado: esquema lógico completo por etapas. Las migraciones administrativas `001_administration.sql` y `002_aibid_catalog.sql` ya están ejecutadas y verificadas en MySQL 8.4.11/InnoDB. La migración 003 añade activaciones, firma e idempotencia online; offline sigue siendo diseño futuro. MariaDB de XAMPP no sustituye este motor.
+Estado: esquema lógico completo por etapas. Las migraciones administrativas `001_administration.sql` y `002_aibid_catalog.sql` ya están ejecutadas y verificadas en MySQL 8.4.11/InnoDB. La migración 003 añade activaciones, firma e idempotencia online; la 004 añade evidencia offline, decisiones y transferencias. Las secciones 10–12 describen el esquema físico vigente; las primeras secciones conservan el modelo conceptual. MariaDB de XAMPP no sustituye este motor.
 
 ## 1. Convenciones
 
@@ -32,9 +32,9 @@ Los campos siguientes son los esenciales del diseño; las migraciones agregarán
 | `signing_keys` | `kid`, `environment`, `purpose`, `public_key`, `secret_reference`, `state`, `created_at`, `activated_at?`, `retired_at?` | PK `kid`; una clave `signing` por propósito/entorno; sin privada en claro |
 | `activation_challenges` | `challenge_id`, `action`, `product_id`, `installation_id`, `activation_id?`, `nonce`, `created_at`, `expires_at`, `consumed_at?`, `consumed_request_id?` | PK; índice por vencimiento; identidad de desafío inmutable |
 | `requests` | `product_id`, `request_id`, `channel`, `action`, `request_digest`, `digest_key_version`, `actor_binding`, `authentication_evidence`, `state`, `http_status?`, `response_bytes?`, `license_id?`, `activation_id?`, timestamps | PK producto/request; resultado terminal inmutable; `actor_binding` incluye identidad y hash de pública; evidencia conserva desafío/proof sin clave comercial |
-| `offline_requests` | `product_id`, `request_id`, `file_sha256`, `envelope_ciphertext`, `envelope_nonce`, `envelope_key_version`, `payload_sha256`, `created_at_claimed`, `imported_at`, `imported_by`, `assigned_license_id?`, `decided_by?`, `decided_at?`, `reason?`, `revision_id?` | PK/FK compuesta a `requests`; sobre original cifrado y metadatos no secretos; aprobación mediante servicio |
-| `license_transfers` | `id`, `license_id`, `from_activation_id`, `to_activation_id?`, `request_id?`, `admin_id`, `reason`, `created_at` | Referencias pertenecen a misma licencia; registro inmutable |
-| `license_revocations` | `id`, `license_id`, `activation_id?`, `scope`, `admin_id`, `reason`, `created_at`, `revision_id?` | Distingue alcance comercial/activación; inmutable; B-01 aceptada para desactivaciones |
+| `offline_requests` | `id`, `product_id`, `request_id`, `evidence_encrypted`, `encryption_version`, `projection_json`, `imported_at`, `imported_by` | UNIQUE/FK producto/request a `license_requests`; evidencia inmutable |
+| `offline_decisions` | `offline_id`, `decision`, `license_id?`, `revision_id?`, `admin_id`, `reason`, `decided_at` | Una decisión inmutable por solicitud; aprobación exige licencia/revisión |
+| `license_transfers` | `id`, `license_id`, `outgoing_activation_id`, `incoming_activation_id?`, `admin_id`, `reason`, `offline_limit_accepted`, `created_at` | FKs a la misma licencia; origen único; registro inmutable |
 | `admin_users` | `id`, `login`, `password_hash`, `role`, `state`, `mfa_secret_encrypted?`, `last_totp_step?`, timestamps | Login único; Argon2id; roles cerrados; secretos cifrados |
 | `admin_recovery_codes` | `id`, `admin_id`, `code_hash`, `used_at?` | Código de un uso con consumo atómico |
 | `admin_sessions` | `token_hash`, `admin_id`, `mfa_verified_at?`, `created_at`, `last_seen_at`, `expires_at`, `revoked_at?` | PK hash de token; sin token de sesión en claro |
@@ -80,7 +80,7 @@ ALTER TABLE activations
     ADD UNIQUE KEY uq_activation_license (activation_id, license_id),
     ADD CONSTRAINT chk_activation_end CHECK (
         (state = 'active' AND ended_at IS NULL)
-        OR (state IN ('deactivated', 'revoked', 'transferred')
+        OR (state IN ('deactivated', 'revoked')
             AND ended_at IS NOT NULL)
     );
 
@@ -107,19 +107,19 @@ Un índice único permite múltiples valores `NULL`, por lo que las activaciones
 
 Orden objetivo de las transacciones del protocolo. En etapa 2 se comprueba primero el actor bajo bloqueo compartido; después la idempotencia administrativa, el cliente cuando se emite, el producto y luego la licencia. Las modificaciones de dependencias bloquean el producto antes de sus licencias. La cabeza de auditoría siempre se toma al final.
 
-Dentro de las transacciones online implementadas y las futuras offline:
+Dentro de las transacciones online y offline implementadas:
 
 1. Fila de idempotencia: `requests` para API/offline o `admin_operations` para panel. Si una operación administrativa decide una solicitud offline, bloquear primero su `admin_operations` y después `requests`; ningún flujo invierte esa relación.
 2. Desafío, cuando corresponde.
 3. Producto bajo bloqueo compartido, seguido de licencia comercial mediante `SELECT ... FOR UPDATE` por PK.
 4. Activación(es) por PK en orden binario, derechos y periodos asociados.
-5. Registro de solicitud offline, cuando corresponde.
-6. Clave firmante con bloqueo compartido durante la emisión; rotación no bloquea licencias.
+5. Evidencia/decisión offline: se insertan bajo la reserva de `license_requests` ya bloqueada; la evidencia original no admite UPDATE.
+6. Ámbito y clave firmante con bloqueo compartido durante la emisión; rotación no bloquea licencias. En una transferencia se retira el origen antes de insertar el destino, manteniendo el mutex de la licencia durante ambas firmas.
 7. Cabeza de auditoría, al final, antes de agregar evento y confirmar.
 
 Una consulta inicial sin bloqueo puede localizar la licencia; toda autorización y condición mutable se vuelve a leer bajo los bloqueos anteriores. No hacer HTTP, correos ni llamadas a terceros dentro de la transacción. La firma es local. Todos los cambios administrativos de derechos bloquean también la licencia.
 
-Se propone `READ COMMITTED` con bloqueos explícitos e índice único; no depender de que una lectura de una plaza vacía bloquee otra inserción. El mutex es la fila de licencia, que sí existe. `FOR UPDATE` se usa dentro de transacciones explícitas. [MySQL: locking reads](https://dev.mysql.com/doc/refman/8.0/en/innodb-locking-reads.html).
+Se usa `READ COMMITTED` con bloqueos explícitos e índice único; no depender de que una lectura de una plaza vacía bloquee otra inserción. El mutex es la fila de licencia, que sí existe. `FOR UPDATE` se usa dentro de transacciones explícitas. [MySQL: locking reads](https://dev.mysql.com/doc/refman/8.0/en/innodb-locking-reads.html).
 
 ## 6. Activación e idempotencia online
 
@@ -164,7 +164,7 @@ La app no recibe UPDATE/DELETE en `audit_events` ni en revisiones/periodos inmut
 | --- | --- | --- |
 | Etapa 2 | Administradores/sesiones/MFA, auditoría, clientes, productos, capacidades, licencias, credenciales, periodos, mantenimiento e idempotencia del panel | Bootstrap sin cuenta predeterminada; roles; reglas comerciales; auditoría atómica |
 | Etapa 3 | Claves, activaciones, desafíos, requests y revisiones; FKs circulares al final | Índice de plaza; firmas; reintentos y concurrencia en MySQL real |
-| Etapa 4 | Solicitudes offline, transferencias y registros de revocación adicionales | Aprobación atómica y recuperación auditada |
+| Etapa 4 | Solicitudes offline, decisiones inmutables y transferencias | Aprobación atómica y recuperación auditada |
 
 La integración offline existe antes de publicar V1, aunque se construya después de la API. Las migraciones tendrán registro de versión/checksum y pruebas de instalación y actualización. Los DDL de MySQL pueden producir commits implícitos: no ofrecer un rollback ficticio de toda una migración; desplegar con preflight, respaldo y cambios compatibles progresivos.
 
@@ -194,3 +194,15 @@ La cuenta del panel/API no puede actualizar identidades de activación: sus perm
 La evidencia de requests confirmados permite verificar reintentos tras purgar desafíos. `cleanup.php` elimina desafíos vencidos hace más de un día, no respuestas, firmas ni resultados idempotentes. Los errores comerciales se confirman con consumo/resultado; los errores criptográficos o técnicos no dejan efectos comerciales parciales. El mensaje de proof archivado no contiene la clave comercial.
 
 Se comprobó una actualización desde el esquema de etapa 2 con licencia, credencial, cliente e historial preexistentes. Las migraciones anteriores y el contrato literal no se modificaron.
+
+## 12. Migración 004 y esquema offline
+
+`004_offline_requests.sql` añade tres tablas: **30 en total**, incluida `schema_migrations`. Las migraciones 001–003 permanecen intactas. No se necesita una tabla de revocaciones adicional: la revocación comercial queda en `license_changes` y revisiones; las retiradas de activación en revisiones, solicitudes/decisiones o transferencias y auditoría.
+
+- `offline_requests`: UUID interno, UNIQUE/FK `(product_id,request_id)`, original cifrado en `MEDIUMTEXT` ASCII, versión 1, proyección JSON sin credencial, importador/fecha. El nonce y ciphertext/tag se almacenan juntos en base64. La fecha declarada conserva su texto original en la proyección.
+- `offline_decisions`: PK/FK `offline_id`, decisión, licencia/revisión, actor, motivo y fecha. Un CHECK exige licencia y revisión para `approved` y ambos nulos para `rejected`. Una segunda decisión no puede insertarse.
+- `license_transfers`: origen único, destino opcional, licencia, actor/motivo/fecha y aceptación obligatoria del límite offline. FKs compuestas garantizan que origen y destino pertenecen a la misma licencia y un CHECK impide que sean iguales.
+
+Estas tres tablas reciben solo SELECT/INSERT para la app; el preflight de producción comprueba que no tenga UPDATE/DELETE. `license_requests` sigue siendo el mutex de cada request y conserva el resultado JSON interno de la decisión. Su `proof_message` queda vacío en el canal offline: guardar allí el segmento firmado revelaría cualquier credencial opcional. El digest HMAC incluye canal, acción, versión, payload base64url exacto y firma. Producto/request ya están dentro del payload firmado. Las proyecciones no sustituyen la revalidación del original cifrado al aprobar.
+
+Para aprobar se bloquean actor → operación administrativa → request → producto → licencia → activación → ámbito/clave de firma → auditoría. El rechazo solo bloquea actor/operación/request y auditoría porque no cambia derechos. En recuperación sin request se omite ese mutex. El índice de plaza única y la fila de licencia serializan las carreras entre API, aprobaciones y recuperación. Firma fallida, error de destino o fallo de auditoría revierten también la retirada del origen, el contador y la decisión.

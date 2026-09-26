@@ -1,12 +1,12 @@
 # API y formatos de intercambio V1
 
-El [anexo literal](LICENSE_CONTRACT.md) es la fuente normativa. Este documento lo organiza y propone detalles operativos donde el anexo no los fija. No se agregan rutas ni campos obligatorios. Las interpretaciones B-01/B-02 están aceptadas en [DECISIONS.md](DECISIONS.md). Los cuatro endpoints online ya están implementados y verificados en etapa 3. La sección de archivos offline describe la etapa 4 pendiente.
+El [anexo literal](LICENSE_CONTRACT.md) es la fuente normativa. Este documento lo organiza y propone detalles operativos donde el anexo no los fija. No se agregan rutas ni campos obligatorios. Las interpretaciones B-01/B-02 están aceptadas en [DECISIONS.md](DECISIONS.md). Los cuatro endpoints online ya están implementados y verificados en etapa 3. La sección de archivos offline está implementada en etapa 4 mediante el panel privado.
 
 ## 1. Convenciones
 
 Exactamente cuatro rutas de licencia, todas `POST` sobre HTTPS y JSON UTF-8. Sin cookies de panel, autenticación por sesión ni CORS abierto en la API de instalaciones. Respuestas con `Cache-Control: no-store`. La clave comercial nunca aparece en URL, respuesta de activación o logs.
 
-Límite online implementado: cuerpos JSON de hasta 16 KiB. Para los futuros archivos `.licreq` se prevé hasta 64 KiB, profundidad JSON limitada y cadenas con límites razonables documentados en los validadores. No se admite contenido duplicado ambiguo, UTF-8 inválido, coerción de tipos ni miembros desconocidos en solicitudes de estos cuatro esquemas. Los payloads firmados de licencia sí admiten extensiones como indica V1, conservando todos sus campos obligatorios.
+Límite online implementado: cuerpos JSON de hasta 16 KiB. Los archivos `.licreq` admiten hasta 64 KiB, profundidad JSON limitada y cadenas con límites razonables documentados en los validadores. No se admite contenido duplicado ambiguo, UTF-8 inválido, coerción de tipos ni miembros desconocidos en solicitudes de estos cuatro esquemas. Los payloads firmados de licencia sí admiten extensiones como indica V1, conservando todos sus campos obligatorios.
 
 UUID con representación estándar; `installation_id` v4. Las identidades recibidas se validan y conservan en el mensaje proof tal como las envió el cliente, sin cambiar mayúsculas antes de verificar la firma. Para comparar identidad se utiliza el UUID decodificado. IDs generadas por el servidor se emiten en minúsculas. `fingerprint_version` es string `"1"`, no entero. `installation_public_key` es base64url estricto sin relleno que decodifica exactamente 32 bytes; `proof` y `signature_b64u` decodifican 64 bytes.
 
@@ -111,6 +111,8 @@ Para verificar base64url: permitir solo `A-Z a-z 0-9 _ -`, sin `=`, espacios ni 
 
 ## 4. Archivos offline
 
+Implementado mediante el panel privado: no hay un quinto endpoint público. Se aceptan archivos de hasta 65.536 bytes y formularios multipart de hasta 98.304 bytes, solo en la ruta de importación. El sobre y el JSON interno rechazan claves duplicadas; profundidad máxima 16, cadenas internas de hasta 256 bytes y campos de V1 cerrados, con `license_key` opcional. La pública tiene 32 bytes y la firma 64, ambas en base64url canónico sin relleno.
+
 Sobre `.licreq` exactamente:
 
 ```json
@@ -132,11 +134,15 @@ Firmar la cadena base64url tal cual, no los bytes JSON decodificados. Verificar 
 
 No fijar una caducidad universal por `created_at`: el contrato admite equipos desconectados y no define TTL. Mostrar antigüedad y diferencias de identidad para decisión administrativa; un replay nunca ejecuta otra vez una solicitud ya resuelta. Renovar no cambia identidad ni IDs, y siempre requiere una nueva solicitud con nueva ID para una nueva operación comercial.
 
-El `.lic` de activación/renovación es exclusivamente el JWS Compact guardado, texto UTF-8 sin envoltorio JSON. El cliente verifica producto, instalación, pública, huella, firma y revisión antes de aceptarlo. La respuesta `.lic` de desactivación seguirá la interpretación aceptada B-01; no se emitirá un payload con estado `deactivated` ni una activación ficticia.
+El `.lic` de activación/renovación es exclusivamente el JWS Compact guardado, texto UTF-8 sin envoltorio JSON. El cliente verifica producto, instalación, pública, huella, firma y revisión antes de aceptarlo. La respuesta `.lic` de desactivación aplica la interpretación aceptada B-01; no se emite un payload con estado `deactivated` ni una activación ficticia.
+
+El operador elige entre emitir los derechos actuales o registrar una ampliación explícita de suscripción. `renew` conserva los UUID y emite una nueva revisión en ambos casos. No se calcula vigencia a partir de `created_at`. Las compras de mantenimiento de perpetuas se registran por separado. La aprobación compara versión comercial, identidad y estado activo otra vez dentro de la transacción.
+
+Una importación equivalente devuelve el mismo expediente de solicitud, pendiente o decidido. Repetir el mismo formulario decidido reproduce su referencia persistida; intentar otra decisión con otro formulario recibe 409. La descarga siempre entrega la revisión de esa decisión, incluso si después se publicaron otras; el panel enlaza el historial actual para evitar confundir una descarga histórica con una actualización de derechos.
 
 ## 5. Idempotencia y errores
 
-Espacio de unicidad implementado en `license_requests`: `(product_id, request_id)` para las tres operaciones online; el campo de canal reserva el mismo espacio para las solicitudes offline de etapa 4. El digest incluye canal y acción: no se permite reutilizar una ID entre acciones. La comparación usa todos los campos y tipos, independientemente del orden de las propiedades del JSON externo. Para `.licreq`, incluye exactamente `payload_b64u`, firma y versión; cambiar los bytes firmados cambia el request aunque el JSON interno tenga el mismo significado.
+Espacio de unicidad implementado en `license_requests`: `(product_id, request_id)` compartido por las operaciones online y offline. Un cruce de canales se rechaza con 409 después de verificar la autenticidad del intento. El digest incluye canal y acción: no se permite reutilizar una ID entre acciones. La comparación usa todos los campos y tipos, independientemente del orden de las propiedades del JSON externo. Para `.licreq`, incluye exactamente `payload_b64u`, firma y versión; cambiar los bytes firmados cambia el request aunque el JSON interno tenga el mismo significado.
 
 Una respuesta persistida se devuelve literalmente, incluido `server_time`. Por ello no es una nueva lectura confiable del reloj; el cliente no debe retroceder su última hora confiable al procesar reintentos. Una revisión antigua recuperada por reintento tampoco puede reemplazar una revisión superior ya aceptada. El cliente solicita un refresh nuevo para conocer cambios posteriores.
 
@@ -150,7 +156,7 @@ Una respuesta persistida se devuelve literalmente, incluido `server_time`. Por e
 }
 ```
 
-Las asignaciones HTTP online implementadas son compatibles con los códigos exigidos. `INCOMPATIBLE_SCHEMA` se reserva para archivos con versión de esquema en etapa 4:
+Las asignaciones HTTP online implementadas son compatibles con los códigos exigidos. `INCOMPATIBLE_SCHEMA` identifica una versión no soportada de archivo offline. El panel presenta estos errores en HTML, sin agregar endpoints públicos:
 
 | Código | HTTP | Uso |
 | --- | --- | --- |

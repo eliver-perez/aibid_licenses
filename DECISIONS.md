@@ -41,7 +41,7 @@ El anexo dice: «Respuesta `.lic`: el **mismo JWS Compact** usado en línea» y 
 
 Esto conserva campos y valores existentes. La integración con el cliente debe verificar que el estado firmado expresa la autorización de esa activación. No incluir `deactivated` en `license_status`, no emitir `active` como confirmación de retirada y no inventar un nuevo tipo de archivo en V1.
 
-La aprobación de diseño ya se recibió. Antes de publicar el flujo offline y el refresh de una activación retirada, ejecutar pruebas del cliente real para detectar interpretaciones incompatibles; cualquier discrepancia deberá resolverse conjuntamente. Etapa 3 implementa la evidencia terminal en desactivación online y refresh; la tramitación offline sigue pendiente.
+La aprobación de diseño ya se recibió. Antes de publicar V1 en producción, ejecutar pruebas del cliente real con el flujo offline y el refresh de una activación retirada para detectar interpretaciones incompatibles; cualquier discrepancia deberá resolverse conjuntamente. Etapa 3 implementa la evidencia terminal en desactivación online y refresh; la etapa 4 implementa también esa evidencia en desactivación offline y transferencia forzada.
 
 ### B-02 — Nombre de campo en el acuse online
 
@@ -90,4 +90,13 @@ La entrega contiene arquitectura, esquema, matriz de estados, amenazas, rutas/fi
 - Una negativa comercial autenticada consume el desafío y persiste su respuesta. El refresh devuelve el JWS archivado incluso después del vencimiento o de la revocación; no emite otra firma por consultar.
 - Archivar catálogo/contactos no revoca derechos vendidos. Una suscripción comercialmente emitida conserva fechas al activar, aun si vencieron; la API no fabrica prórrogas y el cliente calcula tolerancia/solo lectura.
 - Solo la CLI administra firmantes. Las públicas se distribuyen por el canal confiable del cliente; `--trust-confirmed` registra la confirmación operativa al seleccionar un firmante. No se añadió endpoint público de claves ni manifiestos.
-- Descarga administrativa `.lic` disponible para revisar/entregar un JWS ya archivado. La recepción/aprobación de solicitudes offline y la transferencia forzada continúan en etapa 4.
+- Descarga administrativa `.lic` disponible para revisar/entregar un JWS ya archivado. La recepción/aprobación de solicitudes offline y la transferencia forzada se implementaron en etapa 4.
+
+## 9. Concreciones de la etapa 4
+
+- El usuario autorizó continuar esta etapa. Se implementa en PHP/MySQL sin modificar la configuración local, XAMPP, el contrato literal o los SVG.
+- El `.licreq` original se conserva cifrado e inmutable; la decisión reside en otra tabla con una fila máxima por solicitud. La clave opcional se excluye de todas las proyecciones. HKDF desde `CREDENTIAL_KEY`, con dominio de evidencia versión 1, evita exigir secretos nuevos durante la actualización; compartir esta raíz de recuperación queda documentado en SECURITY.
+- La ID del request es compartida entre canales. El digest offline conserva payload y firma exactos; reordenar/formatear el sobre externo no crea otra solicitud. No hay TTL universal para archivos ni purga de resultados terminales.
+- `renew` puede emitir derechos actuales o ampliar explícitamente una suscripción con nueva fecha y referencia. Siempre mantiene identidad e incrementa revisión. Una perpetua no recibe mantenimiento por importar o aprobar una renovación.
+- La transferencia forzada desde la solicitud del destino es atómica: revisión revocada del origen, nuevo UUID de activación, revisión del destino y auditoría. También se permite liberar una plaza sin destino para recuperación posterior. Ambas exigen superadministrador, contraseña/TOTP nuevo, motivo y aceptación explícita del límite offline.
+- La revisión descargada pertenece a la decisión original; consultar historial para entregas posteriores. Las cuatro rutas V1 siguen intactas y las funciones nuevas están en el panel.

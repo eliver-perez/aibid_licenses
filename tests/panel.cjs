@@ -8,12 +8,12 @@ const path = require('node:path');
 
 // Only the synthetic fixture from prepare-panel.php is supported.
 const baseURL = 'http://127.0.0.1:8088';
-function totp(secret) {
+function totp(secret, offset = 0) {
     const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
     const bits = [...secret].map(char => alphabet.indexOf(char).toString(2).padStart(5, '0')).join('');
     const key = Buffer.from(bits.match(/.{8}/g).map(byte => parseInt(byte, 2)));
     const counter = Buffer.alloc(8);
-    counter.writeBigUInt64BE(BigInt(Math.floor(Date.now() / 30000)));
+    counter.writeBigUInt64BE(BigInt(Math.floor(Date.now() / 30000) + offset));
     const digest = crypto.createHmac('sha1', key).update(counter).digest();
     return String((digest.readUInt32BE(digest[19] & 15) & 0x7fffffff) % 1000000).padStart(6, '0');
 }
@@ -41,7 +41,7 @@ const future = days => new Date(Date.now() + days * 86400000).toISOString().slic
         await Promise.all([page.waitForNavigation({ waitUntil: 'load' }), button.click()]);
     }
     async function screenshot(name) {
-        await page.screenshot({ path: path.join(screenshotDir, name + '.png'), fullPage: true });
+        await page.screenshot({ path: path.join(screenshotDir, name + '.png'), fullPage: true, animations: 'disabled' });
     }
     try {
         await page.goto('/admin/licenses');
@@ -135,8 +135,9 @@ const future = days => new Date(Date.now() + days * 86400000).toISOString().slic
         await page.locator('#term_reason').fill('Renovación de prueba');
         await submit(page.getByRole('button', { name: 'Confirmar renovación' }));
         assert.equal(await page.locator('tbody tr').count(), 2);
+        const offlineDownload = await require('./offline-panel.cjs')({ page, context, secret, totp, licenseURL, subscriptionURL: page.url(), commercialKey, screenshot });
 
-        for (const route of ['/admin/customers', '/admin/products', '/admin/products/gestor_documental', '/admin/licenses', '/admin/audit', '/admin/users', '/admin/security']) {
+        for (const route of ['/admin/customers', '/admin/products', '/admin/products/gestor_documental', '/admin/licenses', '/admin/offline', '/admin/audit', '/admin/users', '/admin/security']) {
             const result = await page.goto(route);
             assert.equal(result.status(), 200, route);
         }
@@ -167,9 +168,13 @@ const future = days => new Date(Date.now() + days * 86400000).toISOString().slic
         assert.equal(response.status(), 403);
         response = await viewer.request.get(signedDownload);
         assert.equal(response.status(), 403);
+        response = await viewer.request.get(offlineDownload);
+        assert.equal(response.status(), 403);
+        response = await viewer.request.post('/admin/offline/import', { multipart: { csrf: viewerCsrf, operation_id: crypto.randomUUID(), request_file: { name: 'request.licreq', mimeType: 'application/json', buffer: Buffer.from('{}') } } });
+        assert.equal(response.status(), 403);
         await viewer.close();
         assert.deepEqual(errors, [], 'No JavaScript or console errors');
-        console.log('Panel OK: login, MFA, roles, CSRF/origin, escaped inputs, issuance, maintenance, renewal, signed history/download and responsive navigation.');
+        console.log('Panel OK: login, MFA, roles, CSRF/origin, issuance, maintenance, renewal, offline upload/review/approval/rejection/download, forced transfer with reauthentication, signed deactivation and responsive navigation.');
         console.log('Screenshots: var/screenshots (synthetic data, no credentials).');
     } catch (error) {
         if (process.env.PANEL_DEBUG && new URL(page.url()).pathname === '/login') console.error(await page.locator('main').innerText());

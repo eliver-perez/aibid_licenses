@@ -233,10 +233,12 @@ final class AdministrationTest extends TestCase
         $owner=$this->fixture->owner;
         // Reconstruct exactly the stage-2 schema in this empty, isolated fixture.
         // No external database or migration source file is modified.
+        foreach(['license_transfers','offline_decisions','offline_requests'] as $table)$owner->execute('DROP TABLE '.$table);
+        $owner->execute("DELETE FROM schema_migrations WHERE name='004_offline_requests.sql'");
         $owner->execute('ALTER TABLE activations DROP FOREIGN KEY fk_current_revision');
         foreach(['license_revisions','activations','signing_scopes','signing_keys','activation_challenges','license_requests'] as $table)$owner->execute('DROP TABLE '.$table);
         $owner->execute('DELETE FROM schema_migrations WHERE name=\'003_online_activations.sql\'');
-        self::assertSame(['003_online_activations.sql'],(new Migrator($owner,dirname(__DIR__,2).'/database/migrations'))->migrate());
+        self::assertSame(['003_online_activations.sql','004_offline_requests.sql'],(new Migrator($owner,dirname(__DIR__,2).'/database/migrations'))->migrate());
         $license=$this->fixture->app->read->license($issued['id']);
         self::assertSame('perpetual',$license['license_type']);self::assertNull($license['maintenance_until']);
         self::assertSame(1,(int)$license['row_version']);self::assertSame([],$license['activations']);

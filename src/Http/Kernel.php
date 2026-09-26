@@ -41,7 +41,8 @@ final class Kernel
         if (!Network::allows($this->app->config->get('ADMIN_NETWORKS'), $ip)) { throw new Problem('El panel no está disponible desde esta red.', 403); }
         $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
         if (!in_array($method, ['GET', 'POST'], true)) { header('Allow: GET, POST'); throw new Problem('Método no permitido.', 405); }
-        if ((int) ($_SERVER['CONTENT_LENGTH'] ?? 0) > 65536) { throw new Problem('El formulario supera el tamaño permitido.', 413); }
+        $uploadRoute = $this->path === '/admin/offline/import';
+        if ((int) ($_SERVER['CONTENT_LENGTH'] ?? 0) > ($uploadRoute ? 98304 : 65536)) { throw new Problem('El formulario supera el tamaño permitido.', 413); }
         $cookie = $_COOKIE[$this->cookieName()] ?? null;
         $this->token = is_string($cookie) ? $cookie : '';
         $this->session = $this->app->sessions->load($this->token);
@@ -49,7 +50,8 @@ final class Kernel
             $this->setToken($this->app->sessions->create());
         }
         if ($method === 'POST') {
-            if (!str_starts_with($_SERVER['CONTENT_TYPE'] ?? '', 'application/x-www-form-urlencoded')) { throw new Problem('El formato del formulario no es válido.', 415); }
+            $contentType = strtolower(trim(explode(';', $_SERVER['CONTENT_TYPE'] ?? '')[0]));
+            if ($contentType !== ($uploadRoute ? 'multipart/form-data' : 'application/x-www-form-urlencoded')) { throw new Problem('El formato del formulario no es válido.', 415); }
             $origin = $_SERVER['HTTP_ORIGIN'] ?? null;
             if (($origin !== null && $origin !== rtrim($this->app->config->get('APP_URL'), '/')) || !$this->app->sessions->validCsrf($this->token, $_POST['csrf'] ?? null)) { throw new Problem('El formulario venció o no pertenece a esta sesión. Recarga la página.', 403); }
         }
@@ -80,6 +82,48 @@ final class Kernel
         if ($this->actor === null) { $this->redirect($this->session['stage'] === 'pending' ? '/mfa' : '/login'); return; }
         $operationId = $method === 'POST' ? Input::text($_POST, 'operation_id') : '';
         if ($this->path === '/admin' && $method === 'GET') { $this->render('dashboard', ['title' => 'Resumen', 'stats' => $this->app->read->dashboard()]); return; }
+        if ($this->path === '/admin/offline' && $method === 'GET') { $this->listing('offline','Solicitudes offline'); return; }
+        if ($this->path === '/admin/offline/import' && $method === 'POST') {
+            $this->actor->requireRole(['superadmin','operator']);
+            $this->app->rate->consume('offline-import',$this->actor->id,30,60);
+            $file = $_FILES['request_file'] ?? null;
+            if (!is_array($file) || !isset($file['error'],$file['tmp_name'],$file['size']) || $file['error'] !== UPLOAD_ERR_OK || !is_string($file['tmp_name']) || !is_uploaded_file($file['tmp_name'])) { throw new Problem('Selecciona un archivo .licreq válido de hasta 64 KiB.'); }
+            if ($file['size'] > 65536) { throw new Problem('El archivo supera 64 KiB.',413); }
+            $envelope = file_get_contents($file['tmp_name'],false,null,0,65537);
+            if ($envelope === false) { throw new Problem('No se pudo leer el archivo.'); }
+            $result = $this->app->offline->import($this->actor,$operationId,$envelope);
+            $this->redirect('/admin/offline/'.$result['id']); return;
+        }
+        if (preg_match('~^/admin/offline/([a-f0-9-]{36})(?:/(approve|reject|download))?$~',$this->path,$matches)) {
+            if ($method === 'POST' && in_array($matches[2] ?? '',['approve','reject'],true)) {
+                $this->actor->requireRole(['superadmin','operator']);
+                if ($matches[2] === 'approve' && Input::text($_POST,'force_activation_id',36,false) !== '') { $this->actor->requireRole(['superadmin']); $this->confirmIdentity(); }
+                $result = $this->app->offline->decide($this->actor,$operationId,$matches[1],$matches[2] === 'approve' ? 'approved' : 'rejected',$_POST);
+                $this->redirect('/admin/offline/'.$result['id']); return;
+            }
+            if ($method === 'GET') {
+                $offline = $this->app->read->offline($matches[1]);
+                if (($matches[2] ?? '') === 'download') {
+                    $this->actor->requireRole(['superadmin','operator']);
+                    if ($offline['status'] !== 'approved') { throw new Problem('La solicitud todavía no tiene un archivo autorizado.',409); }
+                    $revision = $this->app->read->revision($offline['license_text'],$offline['revision_text']);
+                    header('Content-Type: text/plain; charset=utf-8');
+                    header('Content-Disposition: attachment; filename="request-'.$matches[1].'.lic"');
+                    echo $revision['license_jws']; return;
+                }
+                if (!isset($matches[2])) {
+                    $selected = $offline['payload']['license_id'] ?? Input::text($_GET,'license_id',36,false);
+                    $license = $selected === '' ? null : $this->app->read->license($selected);
+                    if ($license !== null && $license['product_id'] !== $offline['product_id']) { throw new Problem('La licencia corresponde a otro producto.'); }
+                    $query = Input::text($_GET,'q',100,false);
+                    $this->render('offline-detail',['title'=>'Revisar solicitud offline','offline'=>$offline,'license'=>$license,'candidates'=>$offline['payload']['action'] === 'activate' && $offline['status'] === 'pending' ? $this->app->read->offlineCandidates($offline['product_id'],$query) : [],'query'=>$query]); return;
+                }
+            }
+        }
+        if (preg_match('~^/admin/licenses/([a-f0-9-]{36})/release$~',$this->path,$matches) && $method === 'POST') {
+            $this->actor->requireRole(['superadmin']); $this->confirmIdentity();
+            $this->licenseResult($this->app->offline->release($this->actor,$operationId,$matches[1],$_POST)); return;
+        }
         if ($this->path === '/admin/customers' && $method === 'GET') { $this->listing('customers', 'Clientes'); return; }
         if ($this->path === '/admin/customers/new' && $method === 'GET') { $this->actor->requireRole(['superadmin', 'operator']); $this->render('customer-form', ['title' => 'Nuevo cliente', 'customer' => null]); return; }
         if (preg_match('~^/admin/customers/([a-f0-9-]{36}|create)$~', $this->path, $matches)) {
@@ -171,7 +215,7 @@ final class Kernel
         $filters = [];
         foreach (['q', 'state', 'product_id', 'status', 'type', 'expiry'] as $key) { $filters[$key] = Input::text($_GET, $key, 100, false); }
         $page = isset($_GET['page']) && is_string($_GET['page']) && ctype_digit($_GET['page']) ? min(1000000, (int) $_GET['page']) : 1;
-        $this->render($kind, ['title' => $title, 'listing' => $this->app->read->page($kind, $filters, $page), 'filters' => $filters, 'products' => $kind === 'licenses' ? $this->app->read->products() : []]);
+        $this->render($kind, ['title' => $title, 'listing' => $this->app->read->page($kind, $filters, $page), 'filters' => $filters, 'products' => in_array($kind,['licenses','offline'],true) ? $this->app->read->products() : []]);
     }
 
     private function licenseResult(array $result): void

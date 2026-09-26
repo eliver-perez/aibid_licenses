@@ -17,9 +17,10 @@ consoleRun(function (): void {
         }
     }
     if (!$app->config->development()) {
-        foreach (['audit_events','license_changes','subscription_periods','maintenance_purchases','license_revisions'] as $table) {
+        foreach (['audit_events','license_changes','subscription_periods','maintenance_purchases','license_revisions','offline_requests','offline_decisions','license_transfers'] as $table) {
             foreach (['UPDATE ' . $table . ' SET id=id WHERE 1=0', 'DELETE FROM ' . $table . ' WHERE 1=0'] as $sql) {
                 if ($table === 'audit_events') { $sql = str_replace('SET id=id', 'SET sequence=sequence', $sql); }
+                if ($table === 'offline_decisions') { $sql = str_replace('SET id=id', 'SET offline_id=offline_id', $sql); }
                 if ($table === 'license_revisions') { $sql = str_replace('SET id=id', 'SET revision_id=revision_id', $sql); }
                 try { $app->db->execute($sql); throw new Aibid\Domain\Problem('La cuenta de aplicación tiene permisos de modificación excesivos sobre ' . $table . '.'); }
                 catch (PDOException $error) { if (!in_array((int) ($error->errorInfo[1] ?? 0), [1142,1143], true)) { throw $error; } }

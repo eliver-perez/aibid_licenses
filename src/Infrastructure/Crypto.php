@@ -36,4 +36,23 @@ final class Crypto
     {
         return sodium_bin2base64(random_bytes(32), SODIUM_BASE64_VARIANT_URLSAFE_NO_PADDING);
     }
+
+    public function encryptEvidence(string $plaintext, string $context): string
+    {
+        $nonce = random_bytes(24);
+        $key = hash_hkdf('sha256', $this->config->key('CREDENTIAL_KEY'), 32, 'aibid/offline-evidence/v1');
+        try { return base64_encode($nonce . sodium_crypto_aead_xchacha20poly1305_ietf_encrypt($plaintext, $context, $nonce, $key)); }
+        finally { sodium_memzero($key); }
+    }
+
+    public function decryptEvidence(string $ciphertext, string $context): string
+    {
+        $bytes = base64_decode($ciphertext, true);
+        if ($bytes === false || strlen($bytes) < 40) { throw new \RuntimeException('Invalid evidence.'); }
+        $key = hash_hkdf('sha256', $this->config->key('CREDENTIAL_KEY'), 32, 'aibid/offline-evidence/v1');
+        try { $result = sodium_crypto_aead_xchacha20poly1305_ietf_decrypt(substr($bytes,24), $context, substr($bytes,0,24), $key); }
+        finally { sodium_memzero($key); }
+        if ($result === false) { throw new \RuntimeException('Evidence authentication failed.'); }
+        return $result;
+    }
 }
