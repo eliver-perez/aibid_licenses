@@ -1,0 +1,3 @@
+# The web server must serve only public/. Prevent exposure if this project is
+# accidentally placed directly under an Apache document root.
+Require all denied

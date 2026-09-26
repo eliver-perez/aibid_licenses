@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 740 140" width="100%" height="100%">
+  <style>
+    .brand-title-dark {
+      font-family: 'Plus Jakarta Sans', 'Inter', 'Montserrat', sans-serif;
+      font-weight: 800;
+      font-size: 52px;
+      fill: #FFFFFF;
+      letter-spacing: 3px;
+      dominant-baseline: central;
+    }
+    .brand-sub-dark {
+      font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+      font-weight: 700;
+      font-size: 11.5px;
+      fill: #E2E8F0;
+      letter-spacing: 1.5px;
+    }
+    .brand-tagline-dark {
+      font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+      font-weight: 500;
+      font-size: 13.5px;
+      fill: #94A3B8;
+    }
+  </style>
+
+  <defs>
+    <!-- Silueta base para ambas carpetas -->
+    <path id="folder-shape-light" d="M 3 0 H 28 L 36 6 H 44 A 4 4 0 0 1 48 10 V 60 A 3 3 0 0 1 45 63 H 3 A 3 3 0 0 1 0 60 V 3 A 3 3 0 0 1 3 0 Z" />
+  </defs>
+
+  <!-- LADO IZQUIERDO: ÍCONO + AIBID -->
+  <g transform="translate(25, 5)">
+    <!-- Carpeta Trasera (Gris Slate Medio) -->
+    <use href="#folder-shape-light" x="15" y="26" fill="#64748B" />
+    
+    <!-- Carpeta Frontal (Blanco Neutro / Casi Blanco) -->
+    <use href="#folder-shape-light" x="10" y="31" fill="#F8FAFC" />
+    
+    <!-- Lupa (Interior Blanco / Contorno y Mango Oscuro) -->
+    <circle cx="28" cy="61" r="14" fill="#FFFFFF" stroke="#0F172A" stroke-width="4" />
+    <line x1="18" y1="71" x2="8" y2="81" stroke="#0F172A" stroke-width="4.5" stroke-linecap="round" />
+    
+    <!-- Texto AIBID -->
+    <text x="78" y="63" class="brand-title-dark">AIBID</text>
+  </g>
+
+  <!-- LÍNEA SEPARADORA VERTICAL -->
+  <line x1="275" y1="30" x2="275" y2="110" stroke="#475569" stroke-width="2.8" stroke-linecap="round" />
+
+  <!-- LADO DERECHO: DESCRIPCIÓN TÉCNICA + SLOGAN -->
+  <g transform="translate(295, 5)">
+    <text x="0" y="56" class="brand-sub-dark">APLICACIÓN DE INDEXACIÓN DE BIBLIOTECAS DIGITALES</text>
+    <text x="0" y="80" class="brand-tagline-dark">Tu biblioteca digital, ordenada y al alcance.</text>
+  </g>
+</svg>

@@ -1,0 +1,2 @@
+<?php use Aibid\Http\View as V; ?>
+<div class="error-state"><span class="eyebrow">SOLICITUD <?= (int) $status ?></span><h1><?= V::escape($title) ?></h1><p><?= V::escape($message) ?></p><div class="d-flex gap-2"><button class="btn btn-outline-secondary" type="button" data-go-back>Regresar</button><a class="btn btn-primary" href="<?= $actor ? '/admin' : '/login' ?>"><?= $actor ? 'Ir al resumen' : 'Iniciar sesión' ?></a></div></div>

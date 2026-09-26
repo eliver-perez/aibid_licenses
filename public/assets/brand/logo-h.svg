@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 130" width="100%" height="100%">
+  <style>
+    .brand-title {
+      font-family: 'Plus Jakarta Sans', 'Inter', 'Montserrat', sans-serif;
+      font-weight: 800;
+      font-size: 52px;
+      fill: #0F172A;
+      letter-spacing: 3px;
+      dominant-baseline: central;
+    }
+    .brand-sub {
+      font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+      font-weight: 700;
+      font-size: 11.5px;
+      fill: #0F172A;
+      letter-spacing: 1.5px;
+    }
+    .brand-tagline {
+      font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+      font-weight: 500;
+      font-size: 13.5px;
+      fill: #475569;
+    }
+  </style>
+
+  <defs>
+    <!-- Silueta base única para ambas carpetas -->
+    <path id="folder-shape" d="M 3 0 H 28 L 36 6 H 44 A 4 4 0 0 1 48 10 V 60 A 3 3 0 0 1 45 63 H 3 A 3 3 0 0 1 0 60 V 3 A 3 3 0 0 1 3 0 Z" />
+  </defs>
+
+  <!-- LADO IZQUIERDO: ÍCONO + AIBID (Centrados en Y = 65px) -->
+  <g transform="translate(15, 0)">
+    <!-- Carpeta Trasera (Gris #64748B) -->
+    <use href="#folder-shape" x="15" y="26" fill="#64748B" />
+    
+    <!-- Carpeta Frontal (Azul Noche #0F172A) -->
+    <use href="#folder-shape" x="10" y="31" fill="#0F172A" />
+    
+    <!-- Lupa en trazo suave -->
+    <circle cx="28" cy="61" r="14" fill="#FFFFFF" stroke="#243242" stroke-width="4" />
+    <line x1="18" y1="71" x2="8" y2="81" stroke="#243242" stroke-width="4.5" stroke-linecap="round" />
+    
+    <!-- Texto AIBID (Alineación óptica al centro de la lupa/carpeta) -->
+    <text x="78" y="63" class="brand-title">AIBID</text>
+  </g>
+
+  <!-- LÍNEA SEPARADORA VERTICAL (Eje exacto Y = 65px) -->
+  <line x1="265" y1="25" x2="265" y2="105" stroke="#0F172A" stroke-width="2.8" stroke-linecap="round" />
+
+  <!-- LADO DERECHO: DESCRIPCIÓN + SLOGAN (Centrado en bloque con el eje Y = 65px) -->
+  <g transform="translate(285, 0)">
+    <text x="0" y="56" class="brand-sub">APLICACIÓN DE INDEXACIÓN DE BIBLIOTECAS DIGITALES</text>
+    <text x="0" y="80" class="brand-tagline">Tu biblioteca digital, ordenada y al alcance.</text>
+  </g>
+</svg>

@@ -1,0 +1,6 @@
+{
+  "name": "aibid-license-panel-tests",
+  "private": true,
+  "scripts": { "test:panel": "node tests/panel.cjs" },
+  "devDependencies": { "playwright": "1.63.0" }
+}
