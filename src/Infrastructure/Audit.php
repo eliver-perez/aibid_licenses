@@ -45,4 +45,12 @@ final class Audit
         }
         return $sequence;
     }
+
+    /** An anchor must come from a separately protected, previously recorded copy. */
+    public function assertAnchor(array $anchor): void
+    {
+        if (!isset($anchor['events'],$anchor['last_hash']) || !is_int($anchor['events']) || $anchor['events']<0 || !is_string($anchor['last_hash']) || !preg_match('/\A[a-f0-9]{64}\z/',$anchor['last_hash'])) { throw new \RuntimeException('Invalid external audit anchor.'); }
+        $hash = $anchor['events']===0 ? str_repeat('0',64) : $this->db->execute('SELECT event_hash FROM audit_events WHERE sequence=?',[$anchor['events']])->fetchColumn();
+        if (!is_string($hash) || !hash_equals($anchor['last_hash'],$hash)) { throw new \RuntimeException('The restored history does not reach or match the external anchor.'); }
+    }
 }

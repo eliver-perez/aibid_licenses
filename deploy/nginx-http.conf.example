@@ -1,0 +1,12 @@
+# Initial certificate issuance and later renewal. Keep this block after TLS is enabled.
+server {
+    listen 80;
+    server_name aibid.adariel.com;
+    server_tokens off;
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/letsencrypt;
+        default_type text/plain;
+        try_files $uri =404;
+    }
+    location / { return 308 https://aibid.adariel.com$request_uri; }
+}

@@ -1,6 +1,6 @@
 # Registro de decisiones y puntos por acordar
 
-Actualizado: 2026-09-26. Arquitectura de etapa 1, administración de etapa 2 y protocolo online de etapa 3. El usuario confirmó las decisiones de diseño y autorizó continuar; B-01 y B-02 están aceptadas. La compatibilidad con el cliente real todavía debe verificarse antes de publicar V1.
+Actualizado: 2026-09-26. Etapas 1–5 implementadas y verificadas localmente. El usuario confirmó las decisiones y autorizó continuar; B-01 y B-02 están aceptadas y comprobadas con el cliente real. Por instrucción del usuario, el despliegue del VPS se entrega como guía y no se ejecuta remotamente.
 
 ## 1. Prioridad de fuentes
 
@@ -56,8 +56,8 @@ El anexo establece que deactivate devuelve `activation_id`, `deactivated_at` y e
 | P-01 | Formato de manifiesto de versiones | El anexo exige `published_at` firmado y propósito separado, pero no define bytes, payload o formato. Diseñar conjuntamente antes de descargas/actualizador; no añadir endpoint V1. Las pruebas actuales solo especifican comparación con una fecha previamente autenticada |
 | P-02 | Distribución de públicas y rotación | Cliente con conjunto de públicas confiables actuales/siguientes, entregado con distribución autenticada; cerrar el mecanismo offline antes de activar nuevas claves |
 | P-03 | Huella por SO | Candidatos y construcción en SECURITY; confirmar algoritmo ya existente en Go, app ID systemd, normalización y vectores. El servidor acepta hash/version como datos opacos |
-| P-04 | Fixtures compartidos reales | No se proporcionó el repositorio del gestor. Este paquete ofrece vectores iniciales verificados por un programa Go independiente; aún deben correr en el verificador real del producto |
-| P-05 | Entorno de integración | Pruebas administrativas ejecutadas en MySQL 8.4.11 aislado y PHP 8.5.7 CLI. El PHP-FPM/TLS del VPS se comprobará en etapa 5; XAMPP no se modificó |
+| P-04 | Cliente real | Resuelto localmente en etapa 5: copia aislada del código actual de `../expediente`, pruebas originales y flujos online/offline con el cliente real; hashes en `var/client-integration-report.json` |
+| P-05 | Entorno de integración | PHP/FPM 8.5.7, MySQL 8.4.11 aislado y Nginx 1.31.3 local por TLS. Usuario instalará Ubuntu 24.04/Nginx en aibid.adariel.com siguiendo la guía; XAMPP intacto |
 | P-06 | Política operativa | Confirmar responsables de recuperación, redes privadas del panel y objetivos RPO/RTO antes del VPS; no bloquea dominio/API |
 
 ## 5. Limitaciones aceptadas por los requisitos
@@ -100,3 +100,11 @@ La entrega contiene arquitectura, esquema, matriz de estados, amenazas, rutas/fi
 - `renew` puede emitir derechos actuales o ampliar explícitamente una suscripción con nueva fecha y referencia. Siempre mantiene identidad e incrementa revisión. Una perpetua no recibe mantenimiento por importar o aprobar una renovación.
 - La transferencia forzada desde la solicitud del destino es atómica: revisión revocada del origen, nuevo UUID de activación, revisión del destino y auditoría. También se permite liberar una plaza sin destino para recuperación posterior. Ambas exigen superadministrador, contraseña/TOTP nuevo, motivo y aceptación explícita del límite offline.
 - La revisión descargada pertenece a la decisión original; consultar historial para entregas posteriores. Las cuatro rutas V1 siguen intactas y las funciones nuevas están en el panel.
+
+
+## 10. Concreciones de etapa 5
+
+- Por instrucción expresa del usuario, todas las pruebas se ejecutan localmente y se entrega una guía para Ubuntu 24.04/Nginx en aibid.adariel.com. No se requiere IP/SSH para cerrar esta entrega.
+- La integración usa una copia temporal del cliente real encontrado en `../expediente`. El servidor sigue en PHP y el cliente original no se edita. El conjunto de confianza real queda a cargo de la distribución del producto: las claves aleatorias del ensayo no se reutilizan en producción.
+- B-01/B-02 funcionan con sus métodos reales: desactivación online, importación de JWS revocado y refresh de origen transferido, con consulta/exportación conservadas. Se observa el indicador local de desactivación offline pendiente después del JWS terminal; se documenta como particularidad del cliente y no se amplía el contrato para ocultarla.
+- Se entrega respaldo diario cifrado y restauración ensayada, con anclaje externo como entrada explícita. RPO de 15 minutos/RTO de cuatro horas siguen siendo objetivos de operación; binlogs/custodia externa requieren configuración del operador. Ningún comando de recuperación habilita emisión automáticamente.

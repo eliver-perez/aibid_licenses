@@ -1,6 +1,6 @@
 # Seguridad y modelo de amenazas
 
-Diseño de seguridad completo por etapas. Autenticación, MFA, sesiones, CSRF, permisos y auditoría administrativa ya se implementaron en etapa 2. Los controles online de activación/firma ya están implementados en etapa 3; la etapa 4 incorpora validación, archivo cifrado y decisión offline. La operación VPS sigue pendiente. El contrato público se conserva en [LICENSE_CONTRACT.md](LICENSE_CONTRACT.md); los detalles de protocolo están en [API.md](API.md).
+Diseño de seguridad completo por etapas. Autenticación, MFA, sesiones, CSRF, permisos y auditoría administrativa se implementaron en etapa 2; activación/firma online en etapa 3; validación, archivo cifrado y decisión offline en etapa 4. Etapa 5 verifica localmente el cliente real y añade respaldo cifrado, restauración aislada y contraste con anclaje externo. La operación del VPS requiere ejecutar [la guía de despliegue](DEPLOY_UBUNTU_24_04.md). El contrato público se conserva en [LICENSE_CONTRACT.md](LICENSE_CONTRACT.md); los detalles de protocolo están en [API.md](API.md).
 
 ## 1. Activos, actores y límites de confianza
 
@@ -121,3 +121,14 @@ El cifrado de evidencia usa una clave de 32 bytes derivada por HKDF-SHA256 desde
 La app verifica Ed25519 antes de reservar una importación y otra vez sobre los bytes originales descifrados al aprobar. Contrasta el HMAC de la reserva y el vínculo de instalación/clave/huella/licencia/producto. Evidencia, decisión y transferencia solo admiten INSERT en SQL de runtime. Una clave comercial opcional no autoriza ni aparece en las vistas, proof archivado, auditoría o resultado idempotente. El archivo temporal de PHP no se mueve a public/, y el nombre/MIME enviados no determinan rutas ni validez.
 
 Todos los formularios nuevos usan sesión MFA, rol, CSRF y Origin. Multipart solo se admite en importación, con límites propios de cuerpo/archivo y 30 intentos por minuto por administrador. La recuperación y transferencia forzada exigen superadministrador, contraseña y TOTP sin reutilizar, motivo y aceptación explícita de la limitación offline. Si falla alguna firma o escritura, la plaza anterior permanece activa. Las solicitudes terminales no se purgan ni se rehabilitan mediante una segunda decisión.
+
+
+## Respaldo y recuperación implementados en etapa 5
+
+Formato versionado `AIBID-BACKUP-V1`: secretstream XChaCha20-Poly1305, cabeceras y bloques autenticados, cierre final obligatorio y EOF exacto. La clave independiente de 32 bytes está fuera del archivo, en un archivo 0600 accesible al operador de respaldo; el pool FPM no accede a ella en el despliegue propuesto. La extracción rechaza rutas ajenas a la lista de entradas, duplicados, ciphertext alterado/truncado y hashes incorrectos; usa una carpeta nueva 0700 con archivos 0600. No es un tar genérico ni ejecuta la configuración JSON extraída.
+
+El archivo incluye datos SQL y secretos necesarios para recuperar licencias perpetuas, credenciales, MFA y evidencia. La cuenta de quien descifra pasa a tener esos secretos; la copia externa y la clave de recuperación deben tener custodias separadas. Los temporales de staging contienen datos sin cifrar dentro de un directorio privado; un corte abrupto exige revisar sus restos. No se promete borrado seguro de SSD mediante unlink.
+
+El respaldo coordina metadatos de firma y cabecera de auditoría con un dump InnoDB consistente; las migraciones/DDL no deben coincidir. La recuperación SQL exige una base vacía explícita y no borra datos existentes. El verificador detecta JWS alterados, contadores/punteros incongruentes y evidencia inválida, y compara secuencia/hash con el anclaje externo suministrado. El anclaje debe provenir de una copia anterior protegida independientemente; la cadena local sola no detecta restauración conjunta a un pasado válido.
+
+Ni restaurar ni verificar quita mantenimiento o reanuda firmas. No publicar una copia atrasada sin reconciliar operaciones posteriores. La tarea systemd de ejemplo crea copias/anclajes locales, no almacenamiento externo ni binlogs. Procedimiento en [la guía del VPS](DEPLOY_UBUNTU_24_04.md).

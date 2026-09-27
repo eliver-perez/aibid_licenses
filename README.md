@@ -1,12 +1,14 @@
 # AIBID · Administración de licencias
 
-Etapas 1–3 · Actualizado el 26 de septiembre de 2026.
+Etapas 1–5 (validación local) · Actualizado el 26 de septiembre de 2026.
 
 Servidor independiente en **PHP 8.3+ y MySQL 8**, con vistas PHP, Bootstrap 5 y JavaScript. El producto inicial se presenta como **AIBID — Aplicación de Indexación de Bibliotecas Digitales** y conserva el identificador contractual `gestor_documental`. Los cuatro logotipos SVG proporcionados se incluyen sin modificar.
 
 El panel permite administrar clientes y su contacto principal, productos, módulos, licencias perpetuas y suscripciones, compras de mantenimiento, renovaciones, credenciales comerciales y auditoría. Incluye bootstrap por CLI, roles, MFA obligatorio, recuperación de un solo uso, protección CSRF, reautenticación para acciones sensibles y transacciones idempotentes.
 
-**Alcance actual:** etapas 1–4 implementadas. Panel comercial, cuatro endpoints V1, firmas Ed25519/JWS, una instalación activa, revisiones e idempotencia. El panel importa `.licreq`, permite asignar licencia, aprobar/rechazar, renovar o desactivar offline y descargar el `.lic` archivado. Incluye transferencia atómica y recuperación de equipo averiado con reautenticación y auditoría. La integración con el cliente real y el despliegue/operación del VPS corresponden a etapa 5; todavía no se declara V1 listo para producción.
+**Alcance actual:** etapas 1–5 completadas para pruebas locales y entrega. Panel comercial, cuatro endpoints V1, firmas Ed25519/JWS, una instalación activa, revisiones e idempotencia. El panel importa `.licreq`, permite asignar licencia, aprobar/rechazar, renovar o desactivar offline y descargar el `.lic` archivado. Incluye transferencia atómica y recuperación de equipo averiado con reautenticación y auditoría. Se verificó el cliente real por HTTPS/Nginx/PHP-FPM y se ensayó respaldo cifrado/restauración. El usuario realizará el despliegue y sus comprobaciones en el VPS.
+
+**Para instalar en `aibid.adariel.com`: [guía Ubuntu 24.04 + Nginx](DEPLOY_UBUNTU_24_04.md).** Incluye paquete de código, PHP-FPM, MySQL, TLS, confianza del cliente, mantenimiento, timer de respaldo y recuperación. No requiere Go ni Node en producción.
 
 ## Ejecutar el panel
 
@@ -59,7 +61,7 @@ composer test:contract
 env TEST_MYSQL_DSN='mysql:unix_socket=/ruta/mysql.sock;charset=utf8mb4' php vendor/bin/phpunit --testsuite integration
 ```
 
-Las pruebas crean bases y usuarios aleatorios `aibid_test_*`, aplican los permisos reales de aplicación y eliminan sus propios datos al finalizar. No apuntarlas a producción. [TEST_PLAN.md](TEST_PLAN.md) contiene la preparación del navegador y la evidencia; Node/Playwright son dependencias de desarrollo únicamente. Go solo verifica los vectores criptográficos de referencia de forma opcional: **el servidor no ejecuta Go ni requiere Go en el VPS**.
+Las pruebas crean bases y usuarios aleatorios `aibid_test_*`, aplican los permisos reales de aplicación y eliminan sus propios datos al finalizar. No apuntarlas a producción. La integración de respaldo necesita `mysql`/`mysqldump` de MySQL en PATH o `TEST_MYSQL_BIN`/`TEST_MYSQLDUMP_BIN` explícitos. [TEST_PLAN.md](TEST_PLAN.md) contiene reproducción y evidencia: 96 pruebas PHP/571 aserciones, más 2 pruebas del cliente real y stack HTTPS/83 aserciones. Go se usa para el oráculo y para ejecutar una copia temporal del cliente AIBID real: **el servidor no ejecuta Go ni requiere Go en el VPS**.
 
 ## Documentación
 
@@ -72,6 +74,7 @@ Las pruebas crean bases y usuarios aleatorios `aibid_test_*`, aplican los permis
 | [SECURITY.md](SECURITY.md) | Controles implementados y diseño de seguridad restante |
 | [LICENSE_CONTRACT.md](LICENSE_CONTRACT.md) | Anexo V1.0 literal, sin modificaciones |
 | [OPERATIONS.md](OPERATIONS.md) | Instalación del panel y preparación del VPS |
+| [DEPLOY_UBUNTU_24_04.md](DEPLOY_UBUNTU_24_04.md) | Instalación concreta en aibid.adariel.com y recuperación |
 | [DECISIONS.md](DECISIONS.md) | Decisiones aceptadas B-01/B-02 y coordinación pendiente |
 | [TEST_PLAN.md](TEST_PLAN.md) | Comandos, evidencia y pruebas de las próximas etapas |
 

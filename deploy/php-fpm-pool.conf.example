@@ -1,0 +1,33 @@
+; Install in the selected PHP 8.3+ FPM pool directory after adapting paths.
+[aibidlicense]
+user = aibid
+group = aibid
+listen = /run/php/aibidlicense.sock
+listen.owner = aibid
+listen.group = www-data
+listen.mode = 0660
+pm = ondemand
+pm.max_children = 8
+pm.process_idle_timeout = 15s
+pm.max_requests = 500
+request_terminate_timeout = 60s
+clear_env = yes
+env[AIBID_CONFIG] = /srv/aibidlicense/shared/config.php
+security.limit_extensions = .php
+catch_workers_output = yes
+decorate_workers_output = no
+php_admin_flag[display_errors] = off
+php_admin_flag[log_errors] = on
+php_admin_flag[expose_php] = off
+php_admin_flag[file_uploads] = on
+php_admin_value[error_log] = /srv/aibidlicense/shared/log/php-error.log
+php_admin_value[date.timezone] = UTC
+php_admin_value[memory_limit] = 128M
+php_admin_value[max_execution_time] = 45
+php_admin_value[upload_max_filesize] = 64K
+php_admin_value[post_max_size] = 96K
+php_admin_value[max_file_uploads] = 1
+php_admin_value[upload_tmp_dir] = /srv/aibidlicense/shared/tmp
+php_admin_value[sys_temp_dir] = /srv/aibidlicense/shared/tmp
+php_admin_flag[opcache.validate_timestamps] = off
+; Reload FPM after switching the current release symlink; this setting caches code.

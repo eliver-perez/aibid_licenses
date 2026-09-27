@@ -1,6 +1,6 @@
 # Plan verificable y contrato de pruebas
 
-Etapas 1–4: vectores criptográficos, panel administrativo, protocolo online y operación offline PHP/MySQL con pruebas ejecutables. Las secciones 8 y 9 enumeran la evidencia de activación/JWS, solicitudes offline y transferencias. La integración con el cliente real y el VPS continúan pendientes.
+Etapas 1–5: vectores, panel administrativo, protocolo online/offline, cliente real y respaldo/restauración con pruebas ejecutables. Las secciones 8 y 9 conservan evidencia histórica; la sección 10 registra la validación local final. No se ejecutaron pruebas en el VPS por indicación del usuario.
 
 ## 1. Paquete compartido V1
 
@@ -199,3 +199,39 @@ env TEST_MYSQL_DSN='mysql:unix_socket=/ruta/mysql.sock;charset=utf8mb4' php vend
 Para el navegador, crear una fixture nueva con `tests/prepare-panel.php`, iniciar el servidor con `AIBID_CONFIG` temporal y ejecutar `npm run test:panel` según la sección 7. La fixture debe ser nueva porque el recorrido enrola MFA y consume los códigos TOTP. No cambiar el archivo real de configuración para probar.
 
 Las fixtures de servicios usan configuración explícita sin heredar variables SQL de runtime. Los servidores HTTP de prueba eliminan esas variables heredadas; la configuración generada del panel hace lo mismo antes de abrir su conexión. Una prueba adicional verifica que DB_DSN de otra instalación no sustituya el DSN aislado.
+
+## 10. Evidencia de etapa 5
+
+El 2026-09-26: **96 pruebas PHP, 571 aserciones** (40 unitarias, 56 de integración) y **2 pruebas de sistema, 83 aserciones**. Todas pasan sin omisiones/advertencias. PHP/FPM 8.5.7, MySQL 8.4.11 aislado, Nginx 1.31.3, Go 1.27.1 para el cliente. No se probó ni instaló nada en el VPS por instrucción del usuario; la guía distingue esas comprobaciones pendientes.
+
+```sh
+# Utilidades del mismo MySQL 8 aislado; TEST_MYSQL_USER/PASSWORD solo si la fixture los necesita.
+env TEST_MYSQL_DSN='mysql:unix_socket=/ruta/mysql.sock;charset=utf8mb4' TEST_MYSQL_BIN=/ruta/mysql TEST_MYSQLDUMP_BIN=/ruta/mysqldump php vendor/bin/phpunit
+
+# Ejecución adicional deliberada: requiere el código real y sus módulos/toolchain ya disponibles.
+env TEST_MYSQL_DSN='mysql:unix_socket=/ruta/mysql.sock;charset=utf8mb4' TEST_CLIENT_SOURCE=/ruta/expediente TEST_GO_BIN=/ruta/go TEST_GO_MODCACHE=/ruta/cache-modulos TEST_GO_CACHE=/private/tmp/aibidlicense-real-client-go-cache TEST_FPM_BIN=/ruta/php-fpm TEST_NGINX_BIN=/ruta/nginx TEST_OPENSSL_BIN=/ruta/openssl php vendor/bin/phpunit tests/System/RealClientTest.php
+```
+
+En esta Mac se utilizó el socket `/private/tmp/aibidlicense-mysql/run/mysql.sock`, binarios `/private/tmp/aibidlicense-mysql/mysql-8.4.11-macos15-arm64/bin/`, cliente `/Applications/XAMPP/xamppfiles/htdocs/expediente` y toolchain Go 1.27.1 ya almacenado en `/private/tmp/gestor-documental-go-mod/golang.org/toolchain@v0.0.1-go1.27.1.darwin-arm64/bin/go`. Los ensayos no usan MariaDB/XAMPP ni `config/local.php`. Requieren poder abrir el socket MySQL y puertos TLS de loopback. No habilitar las pruebas de sistema contra una URL/BD real: `NativeStackFixture` crea su origen y configuración propios.
+
+`RealClientBridge` copia solo el código y fixtures necesarios a un directorio privado, agrega un adaptador de test y compila el paquete original `internal/licensing` con `GOPROXY=off`, `GOSUMDB=off`, `GOTOOLCHAIN=local`, sin descargar dependencias ni editar el original. La copia incluye el estado actual de archivos modificados, no presupone un checkout limpio. `var/client-integration-report.json` conserva sus hashes. El adaptador invoca métodos reales y solo agrega a la confianza TLS la CA temporal; no sustituye la lógica de derechos ni desactiva verificación de certificado.
+
+Cobertura del cliente y proxy:
+
+- Tests originales seleccionados con `^Test(JWS|Subscription|Revision|Missing|Proof|Security)`, más ciclo online por Nginx/FPM: activar, abrir de nuevo estado persistido, replay, segunda plaza denegada, cambio de derechos, refresh y desactivación B-02.
+- Solicitudes offline generadas por el cliente, aprobación PHP, importación real, renovación, desactivación B-01, activación posterior y transferencia forzada. Identidad ajena y revisión anterior se rechazan.
+- Refresh del origen transferido devuelve revisión revocada; clave nueva no confiable se rechaza sin perder derechos anteriores; distribuir la pública permite recibir la revisión nueva. Revocación comercial conserva consulta/exportación.
+- Renovación explícita de suscripción; fronteras exactas antes del vencimiento, en el vencimiento, +1,295,999 y +1,296,000 segundos: activo/tolerancia/solo lectura correspondientes.
+- HTTPS verificado, cookies `__Host-…`/Secure/HttpOnly/SameSite=Lax, acceso directo a PHP/dotfiles rechazado, JSON de 16 KiB y multipart de 96 KiB limitados, API sin cookie, errores con UUID y 503 JSON durante mantenimiento. Retirar el indicador restablece servicio.
+- El estado local `offline_deactivation_pending` queda marcado tras importar JWS revocado, mientras se deniega escritura y el servidor libera plaza. Se registra como particularidad del cliente observado, cuyo código no se cambió.
+
+Cobertura de respaldo:
+
+- Cifrado por bloques mayores a 64 KiB y roundtrip exacto; claves incorrectas, alteración, truncamiento, bytes sobrantes, traversal y sobrescritura rechazados. Limpieza de extracción fallida y permisos privados.
+- Ensayo por CLI de generación de clave, dump, cifrado, manifiesto, extracción e importación en otra base vacía (34 aserciones). Conserva las cinco raíces, dos claves de firma tras rotación, JWS históricos byte a byte, MFA, HMAC comercial, evidencia firmada cifrada, aprobación, pendiente, revisión terminal y replay.
+- Reintentar importación sobre un destino con tablas falla sin cambiar su historia. Un anclaje posterior a la copia, contador alterado o JWS corrupto hace fallar la verificación.
+- Prueba interactiva adicional con pseudoterminal: configure/recovery-config sin eco aun enviando la contraseña inmediatamente al aparecer el prompt; 0600, raíces independientes iniciales, configuración existente intacta y raíces preservadas al recuperar. Solo archivos sintéticos, sin conexión SQL.
+
+El paquete de despliegue se construye por lista de entradas y se inspecciona para excluir secretos, config local, vendor, datos y tests; se verifican hashes de cada entrada. El instalador de dependencias de producción se ejecuta en una extracción temporal, no sobre las dependencias de desarrollo del workspace. Sintaxis de 99 archivos PHP y del script shell verificada; prompt/anexo, cuatro SVG y 72 archivos fuente del cliente coinciden con sus bytes registrados. Composer instaló las seis dependencias de producción y su autoload en una extracción temporal; la versión local Composer 2.8.6 mostró avisos de deprecación propios bajo PHP 8.5, sin impedir la instalación ni los requisitos de plataforma. Las pruebas Chrome de etapa 4 siguen siendo evidencia histórica; no se repitieron porque esta etapa no cambió la interfaz.
+
+Pendiente del operador en el VPS: preflight del PHP/MySQL instalados, nginx/FPM reales del equipo, DNS/certificado público, permisos, timer/renovación TLS, distribución de públicas, prueba de licencia controlada y copia externa con custodia separada. Los archivos systemd se entregan para Ubuntu y no se ejecutaron en macOS. No se declara cumplido un RPO de 15 minutos ni un RTO medido.

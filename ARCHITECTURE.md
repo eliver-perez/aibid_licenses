@@ -1,6 +1,6 @@
 # Arquitectura del servidor AIBID
 
-Estado: diseño completo por etapas; panel y persistencia administrativa implementados en etapa 2; activaciones y firma JWS online implementadas en etapa 3. La etapa 4 implementa solicitudes offline y recuperación/transferencia administrativa. Integración del cliente real y operación VPS continúan pendientes. Contrato de referencia: [V1.0](LICENSE_CONTRACT.md). Registro de decisiones: [DECISIONS.md](DECISIONS.md).
+Estado: diseño e implementación de etapas 1–5. Panel administrativo, firma/API online, solicitudes offline y transferencias disponibles. La etapa 5 comprueba localmente el cliente real mediante HTTPS/Nginx/FPM y añade respaldo cifrado y recuperación verificada. La instalación del VPS queda a cargo del usuario con [esta guía](DEPLOY_UBUNTU_24_04.md). Contrato de referencia: [V1.0](LICENSE_CONTRACT.md). Registro de decisiones: [DECISIONS.md](DECISIONS.md).
 
 ## 1. Límites del sistema
 

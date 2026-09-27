@@ -10,11 +10,10 @@ function hiddenInput(string $label): string
     if (!function_exists('stream_isatty') || !stream_isatty(STDIN)) {
         throw new RuntimeException('Se requiere una terminal interactiva para introducir contraseñas sin mostrarlas.');
     }
-    fwrite(STDOUT, $label);
     $terminalState = trim((string) shell_exec('stty -g'));
     if ($terminalState === '') { throw new RuntimeException('No se pudo proteger la entrada de la terminal.'); }
     system('stty -echo');
-    try { $value = rtrim((string) fgets(STDIN), "\r\n"); }
+    try { fwrite(STDOUT, $label); $value = rtrim((string) fgets(STDIN), "\r\n"); }
     finally { system('stty ' . escapeshellarg($terminalState)); fwrite(STDOUT, PHP_EOL); }
     return $value;
 }

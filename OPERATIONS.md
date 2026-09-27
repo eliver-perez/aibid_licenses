@@ -19,7 +19,7 @@ La verificación de etapa 2 utilizó una instancia temporal independiente de MyS
 
 ## 2. Topología y configuración
 
-VPS Ubuntu con Nginx expuesto solo por HTTPS, pool PHP-FPM dedicado por socket Unix y MySQL sin puerto público. Raíz web `/srv/license-server/current/public`; versiones en directorios separados y datos persistentes fuera del árbol de releases. Desactivar listado de directorios, denegar dotfiles y servir PHP únicamente mediante el front controller previsto.
+VPS Ubuntu con Nginx expuesto solo por HTTPS, pool PHP-FPM dedicado por socket Unix y MySQL sin puerto público. Raíz web `/srv/aibidlicense/current/public`; versiones en directorios separados y datos persistentes fuera del árbol de releases. Desactivar listado de directorios, denegar dotfiles y servir PHP únicamente mediante el front controller previsto.
 
 Configuración de entorno requerida: nombre de entorno, URL base, DSN/usuario/secreto MySQL, registro de claves por propósito, referencias a secretos, proxies confiables, redes autorizadas del panel, límites de tasa/tamaño y parámetros de sesión. `config/local.example.php` contiene nombres y marcadores; `bin/configure.php` genera la configuración real. Las variables de entorno prevalecen sobre ese archivo y `AIBID_CONFIG` permite indicar una ubicación externa. La configuración de producción no se sirve como archivo web ni se imprime en diagnósticos.
 
@@ -166,7 +166,7 @@ php bin/audit-verify.php
 
 No repetir configure/bootstrap ni generar otra clave de firma si ya hay una válida y distribuida. La evidencia usa HKDF desde el `CREDENTIAL_KEY` existente; no exige añadir secretos ni modificar la configuración. Conservar esa raíz junto con los respaldos recuperables. La migración agrega tablas sin modificar licencias/revisiones previas y se probó con historia online existente.
 
-El ejemplo Nginx permite cuerpos de 96 KiB para el multipart; la aplicación sigue limitando archivos a 64 KiB y JSON de API a 16 KiB. En PHP-FPM configurar `file_uploads=On`, `upload_max_filesize` al menos 64 KiB y `post_max_size` al menos 96 KiB. El directorio temporal de uploads debe ser privado al usuario de PHP. Comprobar estos límites reales en etapa 5.
+El ejemplo Nginx permite cuerpos de 96 KiB para el multipart; la aplicación sigue limitando archivos a 64 KiB y JSON de API a 16 KiB. En PHP-FPM configurar `file_uploads=On`, `upload_max_filesize` al menos 64 KiB y `post_max_size` al menos 96 KiB. El directorio temporal de uploads debe ser privado al usuario de PHP. Los límites de Nginx JSON/multipart se comprobaron localmente en etapa 5; repetirlos en el VPS.
 
 1. Pedir al cliente su `.licreq`, preferentemente sin clave comercial. Entrar en **Solicitudes offline** e importarlo. Se comprueba firma/formato y queda pendiente; no se ocupan plazas.
 2. Revisar producto, instalación, pública/huella y fecha declarada. Para activar, buscar cliente/licencia, seleccionarla y pulsar **Revisar derechos**. El producto debe coincidir; una clave comercial contenida en el archivo no reemplaza esta asignación.
@@ -176,3 +176,12 @@ El ejemplo Nginx permite cuerpos de 96 KiB para el multipart; la aplicación sig
 6. Para equipo averiado, un superadministrador puede aprobar la solicitud de destino marcando la transferencia, con contraseña/TOTP nuevo, motivo y aceptación de que una copia offline no se revoca instantáneamente. Ambas firmas y el cambio de plaza se confirman juntos. Sin archivo de destino, usar **Recuperar plaza por equipo averiado** en el detalle de licencia; la plaza queda disponible para una activación posterior.
 
 Ante error 503, no asumir commit fallido: consultar la solicitud y su historial antes de repetir. Reutilizar la operación original cuando corresponda; si ya se decidió, descargar el resultado registrado. Ante 409, recargar/revisar la solicitud o licencia; no cambiar arbitrariamente el request firmado. Ni cleanup ni el operador pueden borrar evidencia, decisiones, transferencias o resultados de idempotencia.
+
+
+## 10. Entrega de etapa 5
+
+Para el destino confirmado por el usuario usar [DEPLOY_UBUNTU_24_04.md](DEPLOY_UBUNTU_24_04.md): aibid.adariel.com, Ubuntu 24.04, Nginx/PHP-FPM y MySQL 8. Toda la validación se realizó localmente; la guía contiene los comandos finales para el operador, sin acceso remoto desde esta sesión.
+
+`configure --output` permite guardar la configuración fuera del release; `--signing-dir` fija las privadas persistentes. No repetir configure en una actualización. `backup.php` crea/verifica archivos cifrados; `restore-empty.php` importa solo a una base vacía; `recovery-config.php` conserva las cinco claves de la copia y solicita la contraseña del destino sin eco; `recovery-check.php --against` verifica historia contra un anclaje previo externo. La guía documenta permisos, mantenimiento, timer, copia externa, rotación y recuperación de una copia atrasada.
+
+Las herramientas no configuran almacenamiento externo ni recuperación de binlogs. La copia diaria entregada no cumple por sí sola el RPO propuesto de 15 minutos. Un anclaje posterior al respaldo debe producir error hasta recuperar o conciliar la historia faltante. El indicador de mantenimiento bloquea tráfico HTTP; detener también tareas y CLI con capacidad de emisión durante una recuperación.
