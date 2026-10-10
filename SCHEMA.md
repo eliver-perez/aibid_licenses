@@ -206,3 +206,7 @@ Se comprobó una actualización desde el esquema de etapa 2 con licencia, creden
 Estas tres tablas reciben solo SELECT/INSERT para la app; el preflight de producción comprueba que no tenga UPDATE/DELETE. `license_requests` sigue siendo el mutex de cada request y conserva el resultado JSON interno de la decisión. Su `proof_message` queda vacío en el canal offline: guardar allí el segmento firmado revelaría cualquier credencial opcional. El digest HMAC incluye canal, acción, versión, payload base64url exacto y firma. Producto/request ya están dentro del payload firmado. Las proyecciones no sustituyen la revalidación del original cifrado al aprobar.
 
 Para aprobar se bloquean actor → operación administrativa → request → producto → licencia → activación → ámbito/clave de firma → auditoría. El rechazo solo bloquea actor/operación/request y auditoría porque no cambia derechos. En recuperación sin request se omite ese mutex. El índice de plaza única y la fila de licencia serializan las carreras entre API, aprobaciones y recuperación. Firma fallida, error de destino o fallo de auditoría revierten también la retirada del origen, el contador y la decisión.
+
+## 13. Transición de identidad AIDEX
+
+`005_aidex_identity.sql` actualiza únicamente los textos originales del producto `gestor_documental` a AIDEX — Aplicación de Indexación Digital de Expedientes. No cambia el esquema ni capacidades, licencias o revisiones; conserva personalizaciones y los checksums 001–004.

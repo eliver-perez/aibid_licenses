@@ -30,12 +30,12 @@ final class NativeStackFixture
             chmod($this->directory.'/tls.key',0600);
             $fpm = file_get_contents(dirname(__DIR__).'/deploy/php-fpm-pool.conf.example');
             $fpm = preg_replace('/^(?: ?user| ?group|listen\.owner|listen\.group)\s*=.*\n/m','',$fpm);
-            $fpm = str_replace(['/srv/aibidlicense/shared','/run/php/aibidlicense.sock'],[$this->directory,$this->directory.'/fpm.sock'],$fpm);
+            $fpm = str_replace(['/srv/aidexlicense/shared','/run/php/aidexlicense.sock'],[$this->directory,$this->directory.'/fpm.sock'],$fpm);
             $this->privateFile('fpm.conf',"[global]\npid = {$this->directory}/fpm.pid\nerror_log = {$this->directory}/log/fpm.log\n".$fpm);
             $parameters = "fastcgi_param QUERY_STRING \$query_string;\nfastcgi_param REQUEST_METHOD \$request_method;\nfastcgi_param CONTENT_TYPE \$content_type;\nfastcgi_param CONTENT_LENGTH \$content_length;\nfastcgi_param SCRIPT_NAME /index.php;\nfastcgi_param REQUEST_URI \$request_uri;\nfastcgi_param SERVER_PROTOCOL \$server_protocol;\nfastcgi_param REMOTE_ADDR \$remote_addr;\nfastcgi_param REMOTE_PORT \$remote_port;\nfastcgi_param SERVER_ADDR \$server_addr;\nfastcgi_param SERVER_PORT \$server_port;\nfastcgi_param SERVER_NAME \$server_name;\nfastcgi_param REDIRECT_STATUS 200;\n";
             $this->privateFile('fastcgi_params',$parameters);
             $nginx = file_get_contents(dirname(__DIR__).'/deploy/nginx.conf.example');
-            $nginx = str_replace(['listen 443 ssl;','licencias.example.com','/srv/aibidlicense/current/public','/etc/letsencrypt/live/127.0.0.1/fullchain.pem','/etc/letsencrypt/live/127.0.0.1/privkey.pem','/srv/aibidlicense/shared','/run/php/aibidlicense.sock'],['listen '.$address.' ssl;','127.0.0.1',dirname(__DIR__).'/public',$this->directory.'/tls.crt',$this->directory.'/tls.key',$this->directory,$this->directory.'/fpm.sock'],$nginx);
+            $nginx = str_replace(['listen 443 ssl;','licensing.aidex.com.mx','/srv/aidexlicense/current/public','/etc/letsencrypt/live/127.0.0.1/fullchain.pem','/etc/letsencrypt/live/127.0.0.1/privkey.pem','/srv/aidexlicense/shared','/run/php/aidexlicense.sock'],['listen '.$address.' ssl;','127.0.0.1',dirname(__DIR__).'/public',$this->directory.'/tls.crt',$this->directory.'/tls.key',$this->directory,$this->directory.'/fpm.sock'],$nginx);
             $this->privateFile('nginx.conf',"pid {$this->directory}/nginx.pid;\nerror_log {$this->directory}/log/nginx-error.log;\nevents { worker_connections 128; }\nhttp { access_log off; client_body_temp_path {$this->directory}/tmp; fastcgi_temp_path {$this->directory}/tmp;\n".$nginx."\n}\n");
             self::command([getenv('TEST_FPM_BIN') ?: 'php-fpm','-t','-y',$this->directory.'/fpm.conf']);
             self::command([getenv('TEST_NGINX_BIN') ?: 'nginx','-t','-p',$this->directory.'/','-c',$this->directory.'/nginx.conf']);

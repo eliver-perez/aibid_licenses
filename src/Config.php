@@ -34,11 +34,15 @@ final class Config
 
     public function validate(): void
     {
+        if (!in_array($this->get('APP_ENV', 'production'), ['production', 'development', 'testing'], true)) {
+            throw new \RuntimeException('APP_ENV debe ser production, development o testing.');
+        }
         foreach (['MFA_KEY', 'CREDENTIAL_KEY', 'AUDIT_KEY', 'SESSION_KEY', 'OPERATION_KEY'] as $name) {
             $this->key($name);
         }
-        $url = parse_url($this->get('APP_URL'));
-        if (!$url || !isset($url['host']) || isset($url['user']) || isset($url['query']) || !in_array($url['path'] ?? '', ['', '/'], true)) {
+        $origin = $this->get('APP_URL');
+        $url = parse_url($origin);
+        if (!$url || !isset($url['host']) || preg_match('/[\x00-\x20\x7f]/', $origin) || isset($url['user']) || isset($url['pass']) || isset($url['query']) || isset($url['fragment']) || !in_array($url['scheme'] ?? '', ['http', 'https'], true) || !in_array($url['path'] ?? '', ['', '/'], true)) {
             throw new \RuntimeException('APP_URL debe ser el origen del sitio, sin subdirectorio.');
         }
         if (($url['scheme'] ?? '') !== 'https' && !($this->development() && in_array($url['host'], ['127.0.0.1', 'localhost', '[::1]'], true))) {

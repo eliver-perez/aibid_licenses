@@ -1,10 +1,12 @@
+> Estado histórico de etapas 1–5. Para la preparación actual de AIDEX 1.0, consultar [INFORME-TRANSICION-AIDEX.md](INFORME-TRANSICION-AIDEX.md) y [DESPLIEGUE-PRODUCCION.md](DESPLIEGUE-PRODUCCION.md). Las cifras siguientes pertenecen a las pruebas de septiembre.
+
 # Punto de continuación · 26 de septiembre de 2026
 
 ## Entrega actual
 
-**Etapas 1–5 completadas en el alcance local autorizado.** El servidor PHP/MySQL incluye panel comercial, API V1, operación offline, integración con el cliente real y respaldo/restauración. No se accedió al VPS. El usuario pidió todas las pruebas locales e instrucciones para instalar en **aibid.adariel.com, Ubuntu 24.04 y Nginx**.
+**Etapas 1–5 completadas en el alcance local autorizado.** El servidor PHP/MySQL incluye panel comercial, API V1, operación offline, integración con el cliente real y respaldo/restauración. No se accedió al VPS. El usuario pidió todas las pruebas locales e instrucciones para instalar en **licensing.aidex.com.mx, Ubuntu 24.04 y Nginx**.
 
-El siguiente paso del operador es seguir [DEPLOY_UBUNTU_24_04.md](DEPLOY_UBUNTU_24_04.md). El paquete `var/releases/aibidlicense-stage5.tar.gz` lleva código/documentación y composer.lock, sin configuración real, claves, datos, vendor o dependencias de pruebas. Su `.sha256` y `RELEASE.json` permiten verificarlo; Composer instala las dependencias en el VPS.
+El siguiente paso del operador es seguir [DEPLOY_UBUNTU_24_04.md](DEPLOY_UBUNTU_24_04.md). Generar un paquete nuevo mediante `bin/build-release.php` siguiendo la guía actual; `var/releases/aidexlicense-1.0.tar.gz` lleva código/documentación y composer.lock, sin configuración real, claves, datos, vendor o dependencias de pruebas. Su `.sha256` y `RELEASE.json` permiten verificarlo; Composer instala las dependencias en el VPS.
 
 ## Resultado de etapa 5
 

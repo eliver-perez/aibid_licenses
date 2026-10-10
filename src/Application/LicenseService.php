@@ -131,7 +131,7 @@ final class LicenseService
 
     private function credential(string $licenseId): string
     {
-        $key = 'AIBID-' . Crypto::token();
+        $key = 'AIDEX-' . Crypto::token();
         $this->db->execute("INSERT INTO license_credentials(credential_id,license_id,key_digest,digest_key_version,state,created_at) VALUES (?,?,?,1,'active',?)", [Uuid::bytes(Uuid::create()), $licenseId, $this->crypto->digest('CREDENTIAL_KEY', $key), $this->clock->sql()]);
         return $key;
     }

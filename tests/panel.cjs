@@ -96,7 +96,7 @@ const future = days => new Date(Date.now() + days * 86400000).toISOString().slic
         await screenshot('license-form-desktop');
         await submit(page.getByRole('button', { name: 'Emitir y mostrar clave' }));
         const commercialKey = await page.locator('#commercial-key').inputValue();
-        assert.match(commercialKey, /^AIBID-[A-Za-z0-9_-]{43}$/);
+        assert.match(commercialKey, /^AIDEX-[A-Za-z0-9_-]{43}$/);
         await page.getByRole('link', { name: 'Ya la guardé · Ver licencia' }).click();
         await page.waitForURL(/\/admin\/licenses\/[a-f0-9-]{36}$/);
         const licenseURL = page.url();

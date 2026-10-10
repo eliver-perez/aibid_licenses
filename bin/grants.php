@@ -4,8 +4,8 @@ require __DIR__ . '/console.php';
 
 consoleRun(function (): void {
     $options = getopt('', ['database:', 'user:']);
-    $database = $options['database'] ?? 'aibid_licenses';
-    $user = $options['user'] ?? 'aibid_app';
+    $database = $options['database'] ?? 'aidex_licenses';
+    $user = $options['user'] ?? 'aidex_app';
     if (!preg_match('/\A[a-zA-Z0-9_]+\z/', $database) || !preg_match('/\A[a-zA-Z0-9_]+\z/', $user)) { throw new Aibid\Domain\Problem('Usa identificadores SQL simples.'); }
     $permissions = [
         'schema_migrations'=>'SELECT', 'security_state'=>'SELECT,UPDATE', 'admin_users'=>'SELECT,INSERT,UPDATE',

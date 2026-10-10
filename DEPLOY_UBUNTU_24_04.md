@@ -1,8 +1,8 @@
-# AIBID: instalación en aibid.adariel.com
+# AIDEX: instalación en licensing.aidex.com.mx
 
-Entrega de etapa 5, 26 de septiembre de 2026. Las pruebas se hicieron localmente; estos comandos los ejecutará el operador en su VPS Ubuntu 24.04 con Nginx. No se accedió al VPS ni se comprobaron su DNS, certificados o servicios. El servidor requiere PHP 8.3+ y **MySQL 8**, no MariaDB. Go y Node no se instalan en el VPS.
+Guía actualizada el 9 de octubre de 2026 para AIDEX 1.0. Alternativa concreta Ubuntu 24.04 + Nginx; la guía general y los parámetros manuales están en [DESPLIEGUE-PRODUCCION.md](DESPLIEGUE-PRODUCCION.md). Las pruebas se hicieron localmente; estos comandos los ejecutará el operador en su VPS Ubuntu 24.04 con Nginx. No se accedió al VPS ni se comprobaron su DNS, certificados o servicios. El servidor requiere PHP 8.3+ y **MySQL 8**, no MariaDB. Go y Node no se instalan en el VPS.
 
-Se usa `/srv/aibidlicense/current` para el código, `shared/` para configuración/claves persistentes y `backup/` para copias privadas. No instalar sobre el directorio de otro sitio. Los comandos de instalación inicial no se deben repetir sobre una instalación con datos; para actualizar, usar la sección 10.
+Se usa `/srv/aidexlicense/current` para el código, `shared/` para configuración/claves persistentes y `backup/` para copias privadas. No instalar sobre el directorio de otro sitio. Los comandos de instalación inicial no se deben repetir sobre una instalación con datos; para actualizar, usar la sección 10.
 
 ## 1. Preparar y copiar el paquete
 
@@ -10,23 +10,23 @@ Desde el proyecto en la Mac, con el PHP moderno y Composer de desarrollo disponi
 
 ```sh
 mkdir -p var/releases
-php bin/build-release.php --output="$PWD/var/releases/aibidlicense-stage5.tar.gz"
+php bin/build-release.php --output="$PWD/var/releases/aidexlicense-1.0.tar.gz"
 ```
 
-La entrega incluye `var/releases/aibidlicense-stage5.tar.gz` y su `.sha256`. El generador falla si el destino existe; para reconstruir, usar otro nombre. Solo empaqueta código, recursos, documentación y `composer.lock`: excluye `config/local.php`, privadas, `var/`, dependencias y pruebas. `RELEASE.json` registra hashes de cada archivo. Subir el paquete y su checksum a `/home/eliver/` mediante el método SSH habitual; reemplazar la IP por la real. No se necesita dar acceso SSH a esta sesión.
+El comando genera `var/releases/aidexlicense-1.0.tar.gz` y su `.sha256`. El generador falla si el destino existe; para reconstruir, usar otro nombre. Solo empaqueta código, recursos, documentación y `composer.lock`: excluye `config/local.php`, privadas, `var/`, dependencias y pruebas. `RELEASE.json` registra hashes de cada archivo. Subir el paquete y su checksum a `/home/eliver/` mediante el método SSH habitual; reemplazar la IP por la real. No se necesita dar acceso SSH a esta sesión.
 
 En el VPS, como `eliver` con `sudo`:
 
 ```sh
 cd /home/eliver
-sha256sum -c aibidlicense-stage5.tar.gz.sha256
-mkdir aibidlicense-stage5-upload
-tar -xzf aibidlicense-stage5.tar.gz -C aibidlicense-stage5-upload
+sha256sum -c aidexlicense-1.0.tar.gz.sha256
+mkdir aidexlicense-1.0-upload
+tar -xzf aidexlicense-1.0.tar.gz -C aidexlicense-1.0-upload
 ```
 
 ## 2. Paquetes, DNS y reloj
 
-El registro A de `aibid.adariel.com` debe apuntar al VPS. Si publicas AAAA, configura también IPv6 y añade los correspondientes `listen [::]:80`/`listen [::]:443 ssl` a los bloques. Estos ejemplos escuchan IPv4. Permitir TCP 80/443 en el firewall local y del proveedor conservando el acceso SSH. No abrir MySQL a Internet.
+El registro A de `licensing.aidex.com.mx` debe apuntar al VPS. Si publicas AAAA, configura también IPv6 y añade los correspondientes `listen [::]:80`/`listen [::]:443 ssl` a los bloques. Estos ejemplos escuchan IPv4. Permitir TCP 80/443 en el firewall local y del proveedor conservando el acceso SSH. No abrir MySQL a Internet.
 
 ```sh
 sudo apt update
@@ -42,67 +42,67 @@ Comprobar sincronización NTP activa; TOTP, desafíos y vencimientos dependen de
 ## 3. Dependencias y permisos
 
 ```sh
-cd /home/eliver/aibidlicense-stage5-upload/aibidlicense
+cd /home/eliver/aidexlicense-1.0-upload/aidexlicense
 composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction --no-scripts --no-plugins
 composer check-platform-reqs --no-dev
-sudo adduser --system --group --home /srv/aibidlicense --no-create-home aibid
-sudo install -d -o root -g root -m 0755 /srv/aibidlicense /srv/aibidlicense/releases
-sudo mv /home/eliver/aibidlicense-stage5-upload/aibidlicense /srv/aibidlicense/releases/stage5
-sudo chown -R root:root /srv/aibidlicense/releases/stage5
-sudo chmod -R u=rwX,go=rX /srv/aibidlicense/releases/stage5
-sudo ln -s /srv/aibidlicense/releases/stage5 /srv/aibidlicense/current
-sudo install -d -o aibid -g aibid -m 0700 /srv/aibidlicense/shared
-sudo install -d -o aibid -g aibid -m 0700 /srv/aibidlicense/shared/keys /srv/aibidlicense/shared/log /srv/aibidlicense/shared/tmp
-sudo install -d -o root -g root -m 0700 /srv/aibidlicense/backup /srv/aibidlicense/backup/archives
-cd /srv/aibidlicense/current
+sudo adduser --system --group --home /srv/aidexlicense --no-create-home aidex
+sudo install -d -o root -g root -m 0755 /srv/aidexlicense /srv/aidexlicense/releases
+sudo mv /home/eliver/aidexlicense-1.0-upload/aidexlicense /srv/aidexlicense/releases/1.0
+sudo chown -R root:root /srv/aidexlicense/releases/1.0
+sudo chmod -R u=rwX,go=rX /srv/aidexlicense/releases/1.0
+sudo ln -s /srv/aidexlicense/releases/1.0 /srv/aidexlicense/current
+sudo install -d -o aidex -g aidex -m 0700 /srv/aidexlicense/shared
+sudo install -d -o aidex -g aidex -m 0700 /srv/aidexlicense/shared/keys /srv/aidexlicense/shared/log /srv/aidexlicense/shared/tmp
+sudo install -d -o root -g root -m 0700 /srv/aidexlicense/backup /srv/aidexlicense/backup/archives
+cd /srv/aidexlicense/current
 ```
 
-El código será de solo lectura para FPM. El usuario `aibid` es exclusivo de este pool y puede escribir en sus carpetas privadas. No usar permisos 777 ni ejecutar Composer como root.
+El código será de solo lectura para FPM. El usuario `aidex` es exclusivo de este pool y puede escribir en sus carpetas privadas. No usar permisos 777 ni ejecutar Composer como root.
 
 ## 4. Base MySQL, configuración y migraciones
 
 Abrir `sudo mysql`. Confirmar `SELECT VERSION();` devuelve MySQL 8. En una instalación inicial:
 
 ```sql
-CREATE DATABASE aibid_licenses CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER 'aibid_migrate'@'localhost' IDENTIFIED BY RANDOM PASSWORD;
-CREATE USER 'aibid_app'@'localhost' IDENTIFIED BY RANDOM PASSWORD;
-GRANT ALL PRIVILEGES ON aibid_licenses.* TO 'aibid_migrate'@'localhost';
+CREATE DATABASE aidex_licenses CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'aidex_migrate'@'localhost' IDENTIFIED BY RANDOM PASSWORD;
+CREATE USER 'aidex_app'@'localhost' IDENTIFIED BY RANDOM PASSWORD;
+GRANT ALL PRIVILEGES ON aidex_licenses.* TO 'aidex_migrate'@'localhost';
 ```
 
 Guardar las dos contraseñas que imprime MySQL en el gestor de secretos. La cuenta de migración solo administra esta base; sus credenciales no se guardan en PHP-FPM. Usamos socket para que el DSN corresponda a las cuentas `localhost`.
 
 ```sh
-sudo -u aibid php8.3 bin/configure.php --env=production --url=https://aibid.adariel.com --dsn='mysql:unix_socket=/var/run/mysqld/mysqld.sock;dbname=aibid_licenses;charset=utf8mb4' --user=aibid_app --output=/srv/aibidlicense/shared/config.php --signing-dir=/srv/aibidlicense/shared/keys
-sudo chown root:root /srv/aibidlicense/shared
-sudo chmod 0755 /srv/aibidlicense/shared
-sudo touch /srv/aibidlicense/shared/maintenance.flag
-sudo -u aibid env AIBID_CONFIG=/srv/aibidlicense/shared/config.php php8.3 bin/migrate.php --user=aibid_migrate
-php8.3 bin/grants.php --database=aibid_licenses --user=aibid_app > /home/eliver/aibid-runtime-grants.sql
-sudo mysql < /home/eliver/aibid-runtime-grants.sql
-sudo -u aibid env AIBID_CONFIG=/srv/aibidlicense/shared/config.php php8.3 bin/preflight.php
+sudo -u aidex php8.3 bin/configure.php --env=production --url=https://licensing.aidex.com.mx --dsn='mysql:unix_socket=/var/run/mysqld/mysqld.sock;dbname=aidex_licenses;charset=utf8mb4' --user=aidex_app --output=/srv/aidexlicense/shared/config.php --signing-dir=/srv/aidexlicense/shared/keys
+sudo chown root:root /srv/aidexlicense/shared
+sudo chmod 0755 /srv/aidexlicense/shared
+sudo touch /srv/aidexlicense/shared/maintenance.flag
+sudo -u aidex env AIBID_CONFIG=/srv/aidexlicense/shared/config.php php8.3 bin/migrate.php --user=aidex_migrate
+php8.3 bin/grants.php --database=aidex_licenses --user=aidex_app > /home/eliver/aidex-runtime-grants.sql
+sudo mysql < /home/eliver/aidex-runtime-grants.sql
+sudo -u aidex env AIBID_CONFIG=/srv/aidexlicense/shared/config.php php8.3 bin/preflight.php
 ```
 
-Las contraseñas se introducen sin eco en una terminal. Se crean cinco claves independientes en `shared/config.php`, con permisos 0600; conservarlas en toda actualización. `shared/` pasa a ser propiedad de root y permite a Nginx comprobar el indicador de mantenimiento; `config.php`, claves, temporales y logs permanecen privados. Las migraciones 001–004 se aplican en orden y mantienen su checksum; no hay migración 005.
+Las contraseñas se introducen sin eco en una terminal. Se crean cinco claves independientes en `shared/config.php`, con permisos 0600; conservarlas en toda actualización. `shared/` pasa a ser propiedad de root y permite a Nginx comprobar el indicador de mantenimiento; `config.php`, claves, temporales y logs permanecen privados. Las migraciones 001–004 conservan su checksum. La 005 actualiza exclusivamente el nombre y la descripción originales del producto a AIDEX, sin cambiar tablas, derechos ni identificadores; se aplica también en instalaciones nuevas.
 
 Si deseas restringir el panel por red, editar `ADMIN_NETWORKS` dentro de `shared/config.php` con CIDR separados por comas. Vacío requiere igualmente autenticación/MFA, pero permite conexiones desde cualquier red. No configurar encabezados de proxy como sustituto de HTTPS; estos ejemplos suponen Nginx directamente expuesto.
 
 ## 5. Administrador y confianza del cliente
 
 ```sh
-sudo -u aibid env AIBID_CONFIG=/srv/aibidlicense/shared/config.php php8.3 bin/bootstrap-admin.php --login=administrador@example.com --name='Administración AIBID'
-sudo -u aibid env AIBID_CONFIG=/srv/aibidlicense/shared/config.php php8.3 bin/signing-key.php --action=generate --kid=lic-prod-2026-a --purpose=license --user=aibid_migrate
-sudo -u aibid env AIBID_CONFIG=/srv/aibidlicense/shared/config.php php8.3 bin/signing-key.php --action=list
+sudo -u aidex env AIBID_CONFIG=/srv/aidexlicense/shared/config.php php8.3 bin/bootstrap-admin.php --login=administrador@example.com --name='Administración AIDEX'
+sudo -u aidex env AIBID_CONFIG=/srv/aidexlicense/shared/config.php php8.3 bin/signing-key.php --action=generate --kid=lic-prod-2026-a --purpose=license --user=aidex_migrate
+sudo -u aidex env AIBID_CONFIG=/srv/aidexlicense/shared/config.php php8.3 bin/signing-key.php --action=list
 ```
 
 Reemplazar el login por el administrador real. Bootstrap pide una contraseña nueva dos veces y solo funciona en una base sin administradores. La CLI de firma crea una privada aleatoria y muestra únicamente la pública y sus metadatos; aún no la activa.
 
-Incorporar la pública mostrada al conjunto de confianza de la distribución del cliente AIBID por su canal autenticado. En la configuración del cliente real comprobado:
+Incorporar la pública mostrada al conjunto de confianza de la distribución del cliente AIDEX por su canal autenticado. En la configuración del cliente real comprobado:
 
 ```json
 {
   "license": {
-    "server_url": "https://aibid.adariel.com",
+    "server_url": "https://licensing.aidex.com.mx",
     "trusted_keys": [
       {"kid":"lic-prod-2026-a","public_key":"REEMPLAZAR_POR_LA_PUBLICA_BASE64URL","environment":"production","purpose":"license"}
     ],
@@ -117,8 +117,8 @@ Este fragmento se integra en la configuración existente del cliente; no reempla
 Una vez comprobada la distribución:
 
 ```sh
-sudo -u aibid env AIBID_CONFIG=/srv/aibidlicense/shared/config.php php8.3 bin/signing-key.php --action=activate --kid=lic-prod-2026-a --reason='Pública incorporada y verificada en la distribución AIBID' --trust-confirmed --user=aibid_migrate
-sudo -u aibid env AIBID_CONFIG=/srv/aibidlicense/shared/config.php php8.3 bin/preflight.php --require-signer
+sudo -u aidex env AIBID_CONFIG=/srv/aidexlicense/shared/config.php php8.3 bin/signing-key.php --action=activate --kid=lic-prod-2026-a --reason='Pública incorporada y verificada en la distribución AIDEX' --trust-confirmed --user=aidex_migrate
+sudo -u aidex env AIBID_CONFIG=/srv/aidexlicense/shared/config.php php8.3 bin/preflight.php --require-signer
 ```
 
 Para rotar, generar otro `kid`, distribuir la nueva pública **junto con las antiguas**, verificarla y solo entonces activarla. Las firmas antiguas siguen verificándose; no borrar privadas registradas que deban entrar en el respaldo.
@@ -126,28 +126,27 @@ Para rotar, generar otro `kid`, distribuir la nueva pública **junto con las ant
 ## 6. PHP-FPM y certificado HTTPS
 
 ```sh
-sudo install -m 0644 deploy/php-fpm-pool.conf.example /etc/php/8.3/fpm/pool.d/aibidlicense.conf
+sudo install -m 0644 deploy/php-fpm-pool.conf.example /etc/php/8.3/fpm/pool.d/aidexlicense.conf
 sudo php-fpm8.3 -t
 sudo systemctl reload php8.3-fpm
 sudo install -d -o root -g root -m 0755 /var/www/letsencrypt
-sudo install -m 0644 deploy/nginx-http.conf.example /etc/nginx/sites-available/aibidlicense-http
-sudo ln -s /etc/nginx/sites-available/aibidlicense-http /etc/nginx/sites-enabled/aibidlicense-http
+sudo install -m 0644 deploy/nginx-http.conf.example /etc/nginx/sites-available/aidexlicense-http
+sudo ln -s /etc/nginx/sites-available/aidexlicense-http /etc/nginx/sites-enabled/aidexlicense-http
 sudo nginx -t
 sudo systemctl reload nginx
-sudo certbot certonly --webroot -w /var/www/letsencrypt -d aibid.adariel.com
+sudo certbot certonly --webroot -w /var/www/letsencrypt -d licensing.aidex.com.mx
 ```
 
 El bloque HTTP sirve únicamente desafíos ACME y redirige al dominio HTTPS. Mantenerlo para renovaciones. Certbot solicita el correo de contacto y sus condiciones; no cambiar los otros sitios de Nginx. El modo webroot requiere DNS correcto y puerto 80 accesible ([documentación de Ubuntu](https://ubuntu.com/server/docs/how-to/security/obtain-tls-certificates/)).
 
 ```sh
-sed 's/licencias\.example\.com/aibid.adariel.com/g' deploy/nginx.conf.example > /home/eliver/aibidlicense-https.conf
-sudo install -m 0644 /home/eliver/aibidlicense-https.conf /etc/nginx/sites-available/aibidlicense-https
-sudo ln -s /etc/nginx/sites-available/aibidlicense-https /etc/nginx/sites-enabled/aibidlicense-https
+sudo install -m 0644 deploy/nginx.conf.example /etc/nginx/sites-available/aidexlicense-https
+sudo ln -s /etc/nginx/sites-available/aidexlicense-https /etc/nginx/sites-enabled/aidexlicense-https
 sudo nginx -t
 sudo systemctl reload nginx
 sudo install -d -m 0755 /etc/letsencrypt/renewal-hooks/deploy
-sudo sh -c 'printf "#!/bin/sh\nnginx -t && systemctl reload nginx\n" > /etc/letsencrypt/renewal-hooks/deploy/aibid-nginx'
-sudo chmod 0755 /etc/letsencrypt/renewal-hooks/deploy/aibid-nginx
+sudo sh -c 'printf "#!/bin/sh\nnginx -t && systemctl reload nginx\n" > /etc/letsencrypt/renewal-hooks/deploy/aidex-nginx'
+sudo chmod 0755 /etc/letsencrypt/renewal-hooks/deploy/aidex-nginx
 sudo systemctl enable --now certbot.timer
 sudo certbot renew --dry-run
 ```
@@ -157,15 +156,15 @@ No habilitar el bloque HTTPS antes de tener sus archivos de certificado. Su `map
 ## 7. Respaldo y tarea diaria
 
 ```sh
-sudo php8.3 bin/backup.php --action=keygen --key-file=/srv/aibidlicense/backup/recovery.key
-sudo install -o root -g root -m 0750 deploy/aibid-maintenance.sh /usr/local/sbin/aibid-maintenance
-sudo install -o root -g root -m 0644 deploy/aibid-maintenance.service /etc/systemd/system/aibid-maintenance.service
-sudo install -o root -g root -m 0644 deploy/aibid-maintenance.timer /etc/systemd/system/aibid-maintenance.timer
+sudo php8.3 bin/backup.php --action=keygen --key-file=/srv/aidexlicense/backup/recovery.key
+sudo install -o root -g root -m 0750 deploy/aidex-maintenance.sh /usr/local/sbin/aidex-maintenance
+sudo install -o root -g root -m 0644 deploy/aidex-maintenance.service /etc/systemd/system/aidex-maintenance.service
+sudo install -o root -g root -m 0644 deploy/aidex-maintenance.timer /etc/systemd/system/aidex-maintenance.timer
 sudo systemctl daemon-reload
-sudo systemctl start aibid-maintenance.service
-sudo systemctl status aibid-maintenance.service --no-pager
-sudo systemctl enable --now aibid-maintenance.timer
-sudo systemctl list-timers aibid-maintenance.timer
+sudo systemctl start aidex-maintenance.service
+sudo systemctl status aidex-maintenance.service --no-pager
+sudo systemctl enable --now aidex-maintenance.timer
+sudo systemctl list-timers aidex-maintenance.timer
 ```
 
 El script usa `/usr/bin/php` mediante PATH de systemd; confirmar que es PHP 8.3+ con las mismas extensiones. Si hay varias versiones, cambiar las tres invocaciones a `php8.3` en el script instalado. Ejecuta cleanup, exporta un anclaje y crea copia cifrada diaria a las 03:15 UTC, con exclusión `flock`. El proceso root puede leer la clave de recuperación; PHP-FPM no puede atravesar `backup/`. Las credenciales SQL usadas son las de aplicación, con SELECT suficiente para el dump configurado. Se puede usar `backup.php --mysql-options=/ruta/archivo0600` para una cuenta de respaldo con SELECT sobre esta base; los secretos nunca se pasan en argumentos.
@@ -183,20 +182,20 @@ La copia diaria tiene hasta **24 horas de pérdida potencial**. El objetivo prop
 Con mantenimiento activo:
 
 ```sh
-curl -i https://aibid.adariel.com/v1/activations/challenge -H 'Content-Type: application/json' --data '{}'
-sudo -u aibid env AIBID_CONFIG=/srv/aibidlicense/shared/config.php php8.3 bin/preflight.php --require-signer
-sudo -u aibid env AIBID_CONFIG=/srv/aibidlicense/shared/config.php php8.3 bin/recovery-check.php
-sudo -u aibid env AIBID_CONFIG=/srv/aibidlicense/shared/config.php php8.3 bin/audit-verify.php
+curl -i https://licensing.aidex.com.mx/v1/activations/challenge -H 'Content-Type: application/json' --data '{}'
+sudo -u aidex env AIBID_CONFIG=/srv/aidexlicense/shared/config.php php8.3 bin/preflight.php --require-signer
+sudo -u aidex env AIBID_CONFIG=/srv/aidexlicense/shared/config.php php8.3 bin/recovery-check.php
+sudo -u aidex env AIBID_CONFIG=/srv/aidexlicense/shared/config.php php8.3 bin/audit-verify.php
 ```
 
 La primera llamada debe devolver 503 JSON con `TEMPORARY_UNAVAILABLE` y UUID de correlación. Ensayar extracción/restauración según la sección 9 en otra base vacía, y comprobar que el respaldo inicial y su clave ya tienen copia externa. Después:
 
 ```sh
-sudo rm /srv/aibidlicense/shared/maintenance.flag
-curl -sS -D - -o /dev/null https://aibid.adariel.com/login
-curl -i https://aibid.adariel.com/v1/activations/challenge -H 'Content-Type: application/json' --data '{}'
-curl -i https://aibid.adariel.com/.env
-curl -i https://aibid.adariel.com/index.php
+sudo rm /srv/aidexlicense/shared/maintenance.flag
+curl -sS -D - -o /dev/null https://licensing.aidex.com.mx/login
+curl -i https://licensing.aidex.com.mx/v1/activations/challenge -H 'Content-Type: application/json' --data '{}'
+curl -i https://licensing.aidex.com.mx/.env
+curl -i https://licensing.aidex.com.mx/index.php
 ```
 
 `/login` debe cargar el panel; el POST vacío de API debe devolver 400 JSON sin cookie administrativa. Los dos archivos directos se rechazan (403/404). Comprobar cookie `__Host-…` con Secure, HttpOnly y SameSite=Lax, HSTS y certificado válido en el navegador. Entrar con el administrador y enrolar TOTP; guardar los códigos de recuperación una sola vez. No publicar `phpinfo()`.
@@ -207,43 +206,45 @@ El cliente actual acepta la revisión terminal y restringe escritura; su indicad
 
 ## 9. Restaurar sin sobrescribir la base original
 
-En un ensayo, mantener el destino sin tráfico. En un incidente real, crear `shared/maintenance.flag`, detener `aibid-maintenance.timer`, cerrar procesos/CLI que emiten o cambian licencias y dejar terminar solicitudes en curso antes de restaurar. El indicador bloquea HTTP, no otros comandos CLI. No quitar mantenimiento hasta conciliar operaciones posteriores a la copia con anclajes externos/binlogs. Un respaldo antiguo puede contener plazas o contadores antiguos aunque todas sus firmas sean válidas.
+En un ensayo, mantener el destino sin tráfico. En un incidente real, crear `shared/maintenance.flag`, detener `aidex-maintenance.timer`, cerrar procesos/CLI que emiten o cambian licencias y dejar terminar solicitudes en curso antes de restaurar. El indicador bloquea HTTP, no otros comandos CLI. No quitar mantenimiento hasta conciliar operaciones posteriores a la copia con anclajes externos/binlogs. Un respaldo antiguo puede contener plazas o contadores antiguos aunque todas sus firmas sean válidas.
 
 Trabajar como root en una sesión privada (`sudo -i`); los nombres de copia de abajo se sustituyen por los reales:
 
 ```sh
-cd /srv/aibidlicense/current
-install -d -m 0700 /srv/aibidlicense/recovery
-php8.3 bin/backup.php --action=extract --key-file=/srv/aibidlicense/backup/recovery.key --archive=/srv/aibidlicense/backup/archives/FECHA.aibidbackup --directory=/srv/aibidlicense/recovery/ensayo1
+cd /srv/aidexlicense/current
+install -d -m 0700 /srv/aidexlicense/recovery
+php8.3 bin/backup.php --action=extract --key-file=/srv/aidexlicense/backup/recovery.key --archive=/srv/aidexlicense/backup/archives/FECHA.aibidbackup --directory=/srv/aidexlicense/recovery/ensayo1
 mysql
 ```
 
 En MySQL crear **otra base** y cuenta temporal de importación. No ejecutar migraciones antes de importar:
 
 ```sql
-CREATE DATABASE aibid_restore_check CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER 'aibid_restore'@'localhost' IDENTIFIED BY RANDOM PASSWORD;
-GRANT ALL PRIVILEGES ON aibid_restore_check.* TO 'aibid_restore'@'localhost';
+CREATE DATABASE aidex_restore_check CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'aidex_restore'@'localhost' IDENTIFIED BY RANDOM PASSWORD;
+GRANT ALL PRIVILEGES ON aidex_restore_check.* TO 'aidex_restore'@'localhost';
 ```
 
 Guardar la contraseña temporal y salir de MySQL. Generar configuración recuperada preservando las cinco claves:
 
 ```sh
-php8.3 bin/recovery-config.php --directory=/srv/aibidlicense/recovery/ensayo1 --output=/srv/aibidlicense/recovery/import.php --dsn='mysql:unix_socket=/var/run/mysqld/mysqld.sock;dbname=aibid_restore_check;charset=utf8mb4' --user=aibid_restore --signing-dir=/srv/aibidlicense/recovery/ensayo1/keys
-php8.3 bin/restore-empty.php --directory=/srv/aibidlicense/recovery/ensayo1 --target-config=/srv/aibidlicense/recovery/import.php
-php8.3 bin/grants.php --database=aibid_restore_check --user=aibid_app > /srv/aibidlicense/recovery/grants.sql
-mysql < /srv/aibidlicense/recovery/grants.sql
-php8.3 bin/recovery-config.php --directory=/srv/aibidlicense/recovery/ensayo1 --output=/srv/aibidlicense/recovery/runtime.php --dsn='mysql:unix_socket=/var/run/mysqld/mysqld.sock;dbname=aibid_restore_check;charset=utf8mb4' --user=aibid_app --signing-dir=/srv/aibidlicense/recovery/ensayo1/keys
-env AIBID_CONFIG=/srv/aibidlicense/recovery/runtime.php php8.3 bin/preflight.php --require-signer
-env AIBID_CONFIG=/srv/aibidlicense/recovery/runtime.php php8.3 bin/recovery-check.php --against=/RUTA/AL/ULTIMO-ANCLAJE-EXTERNO.json
-env AIBID_CONFIG=/srv/aibidlicense/recovery/runtime.php php8.3 bin/audit-verify.php --against=/RUTA/AL/ULTIMO-ANCLAJE-EXTERNO.json
+php8.3 bin/recovery-config.php --directory=/srv/aidexlicense/recovery/ensayo1 --output=/srv/aidexlicense/recovery/import.php --dsn='mysql:unix_socket=/var/run/mysqld/mysqld.sock;dbname=aidex_restore_check;charset=utf8mb4' --user=aidex_restore --signing-dir=/srv/aidexlicense/recovery/ensayo1/keys
+php8.3 bin/restore-empty.php --directory=/srv/aidexlicense/recovery/ensayo1 --target-config=/srv/aidexlicense/recovery/import.php
+php8.3 bin/grants.php --database=aidex_restore_check --user=aidex_app > /srv/aidexlicense/recovery/grants.sql
+mysql < /srv/aidexlicense/recovery/grants.sql
+php8.3 bin/recovery-config.php --directory=/srv/aidexlicense/recovery/ensayo1 --output=/srv/aidexlicense/recovery/runtime.php --dsn='mysql:unix_socket=/var/run/mysqld/mysqld.sock;dbname=aidex_restore_check;charset=utf8mb4' --user=aidex_app --signing-dir=/srv/aidexlicense/recovery/ensayo1/keys
+env AIBID_CONFIG=/srv/aidexlicense/recovery/runtime.php php8.3 bin/preflight.php --require-signer
+env AIBID_CONFIG=/srv/aidexlicense/recovery/runtime.php php8.3 bin/recovery-check.php --against=/RUTA/AL/ULTIMO-ANCLAJE-EXTERNO.json
+env AIBID_CONFIG=/srv/aidexlicense/recovery/runtime.php php8.3 bin/audit-verify.php --against=/RUTA/AL/ULTIMO-ANCLAJE-EXTERNO.json
 ```
 
-En un servidor nuevo, crear también `aibid_app` con contraseña aleatoria antes de sus GRANT. `restore-empty` rechaza cualquier tabla existente y no borra ni trunca tablas. Un error durante la importación puede dejar una copia parcial: conservarla para diagnóstico y crear otro destino vacío para reintentar. `recovery-config` no ejecuta el JSON del respaldo como código y no crea claves nuevas. La configuración de importación tiene permisos SQL amplios y no debe usarse como runtime/FPM.
+En un servidor nuevo, crear también `aidex_app` con contraseña aleatoria antes de sus GRANT. `restore-empty` rechaza cualquier tabla existente y no borra ni trunca tablas. Un error durante la importación puede dejar una copia parcial: conservarla para diagnóstico y crear otro destino vacío para reintentar. `recovery-config` no ejecuta el JSON del respaldo como código y no crea claves nuevas. La configuración de importación tiene permisos SQL amplios y no debe usarse como runtime/FPM.
+
+Si la copia se creó antes de la migración 005, aplicar las migraciones pendientes con `bin/migrate.php --user=aidex_migrate` y la configuración runtime recuperada, después de importar y antes de preflight. Conservar los checksums de los SQL originales.
 
 Los verificadores comprueban auditoría, anclaje, firmas JWS históricas, referencias de activación, contadores globales, una plaza activa y evidencia offline cifrada. Un anclaje posterior al respaldo debe fallar hasta recuperar la historia faltante. Para un ensayo se puede comprobar además el anclaje de la propia copia, pero eso no demuestra continuidad hasta hoy. Conservar también JWS posteriores aportados por clientes para conciliación; no emitir números de revisión inventados ni rehabilitar automáticamente plazas. Si la historia no puede reconstruirse, mantener suspendida la emisión y resolver administrativamente antes de reabrir.
 
-Un ensayo termina sin cambiar `shared/config.php`. Para convertir una recuperación conciliada en producción, con mantenimiento activo: instalar sus claves en una nueva carpeta privada persistente de `shared/` propiedad de `aibid` (0700/0600), generar otra configuración runtime con ese directorio y el DSN recuperado, verificarla de nuevo, sustituir `shared/config.php` conservando propiedad `aibid:aibid`/0600, recargar FPM y probar. No volver a ejecutar configure/bootstrap/generate. Las cuentas MySQL, GRANT, Nginx/TLS, paquetes y timers no forman parte del dump y se preparan con esta guía. Retirar la cuenta de importación y acceso temporal al ensayo al cerrar la recuperación; la herramienta no los borra automáticamente.
+Un ensayo termina sin cambiar `shared/config.php`. Para convertir una recuperación conciliada en producción, con mantenimiento activo: instalar sus claves en una nueva carpeta privada persistente de `shared/` propiedad de `aidex` (0700/0600), generar otra configuración runtime con ese directorio y el DSN recuperado, verificarla de nuevo, sustituir `shared/config.php` conservando propiedad `aidex:aidex`/0600, recargar FPM y probar. No volver a ejecutar configure/bootstrap/generate. Las cuentas MySQL, GRANT, Nginx/TLS, paquetes y timers no forman parte del dump y se preparan con esta guía. Retirar la cuenta de importación y acceso temporal al ensayo al cerrar la recuperación; la herramienta no los borra automáticamente.
 
 ## 10. Actualizaciones y operación
 
@@ -252,10 +253,10 @@ Preparar cada versión en `releases/<version>` con sus dependencias y código ro
 Si falla una migración, no restaurar silenciosamente un dump antiguo ni editar su checksum: conciliar el DDL pendiente. Volver a código anterior solo cuando su esquema sea compatible. Conservar la versión anterior para diagnóstico.
 
 ```sh
-sudo journalctl -u php8.3-fpm -u aibid-maintenance.service --since today
-sudo tail -n 100 /srv/aibidlicense/shared/log/php-error.log
+sudo journalctl -u php8.3-fpm -u aidex-maintenance.service --since today
+sudo tail -n 100 /srv/aidexlicense/shared/log/php-error.log
 sudo nginx -t
-sudo systemctl list-timers certbot.timer aibid-maintenance.timer
+sudo systemctl list-timers certbot.timer aidex-maintenance.timer
 ```
 
 Vigilar fallos de timers, espacio libre, antigüedad de copias/anclajes externos, caducidad TLS, NTP y errores 5xx. Configurar rotación del log PHP privado y los logs Nginx existentes del VPS. No habilitar registro de cuerpos, claves comerciales ni parámetros SQL. `cleanup` elimina datos temporales vencidos, pero conserva historial, decisiones e idempotencia. Los clientes offline conservan derechos según su último JWS: ninguna transferencia garantiza revocación instantánea de un equipo desconectado.

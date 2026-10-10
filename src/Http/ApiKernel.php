@@ -35,7 +35,7 @@ final class ApiKernel
             if ($error->status !== 429) { throw $error; }
             $response = ApiResponse::error(new ApiProblem('RATE_LIMITED',429),$requestId);
         } catch (\Throwable $error) {
-            error_log('AIBID API [' . $requestId . '] ' . get_class($error) . ' at ' . basename($error->getFile()) . ':' . $error->getLine());
+            error_log('AIDEX API [' . $requestId . '] ' . get_class($error) . ' at ' . basename($error->getFile()) . ':' . $error->getLine());
             $response = ApiResponse::error(new ApiProblem('TEMPORARY_UNAVAILABLE',503),$requestId);
         }
         http_response_code($response->status);

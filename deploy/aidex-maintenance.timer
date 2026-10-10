@@ -1,5 +1,5 @@
 [Unit]
-Description=Daily AIBID recovery copy
+Description=Daily AIDEX recovery copy
 
 [Timer]
 OnCalendar=*-*-* 03:15:00 UTC

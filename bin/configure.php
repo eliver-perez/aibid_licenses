@@ -5,7 +5,7 @@ require __DIR__ . '/console.php';
 consoleRun(function (): void {
     $options = getopt('', ['env:', 'url:', 'dsn:', 'user:', 'output:', 'signing-dir:']);
     if (array_diff(['env','url','dsn','user'], array_keys($options))) {
-        throw new Aibid\Domain\Problem('Uso: php bin/configure.php --env=production --url=https://licencias.example.com --dsn="mysql:host=127.0.0.1;dbname=aibid_licenses;charset=utf8mb4" --user=aibid_app');
+        throw new Aibid\Domain\Problem('Uso: php bin/configure.php --env=production --url=https://licensing.aidex.com.mx --dsn="mysql:host=127.0.0.1;dbname=aidex_licenses;charset=utf8mb4" --user=aidex_app');
     }
     if (!in_array($options['env'], ['production','development'], true)) { throw new Aibid\Domain\Problem('Entorno no válido.'); }
     $path = $options['output'] ?? dirname(__DIR__) . '/config/local.php';

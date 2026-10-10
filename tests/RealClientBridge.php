@@ -10,7 +10,7 @@ final class RealClientBridge
 
     public function __construct(string $source)
     {
-        if (!is_file($source.'/internal/licensing/contract.go')) { throw new \RuntimeException('Set TEST_CLIENT_SOURCE to the real AIBID Go source.'); }
+        if (!is_file($source.'/internal/licensing/contract.go')) { throw new \RuntimeException('Set TEST_CLIENT_SOURCE to the real AIDEX Go source.'); }
         $this->directory = '/private/tmp/aibid-client-'.bin2hex(random_bytes(6)); mkdir($this->directory,0700);
         $hashes = [];
         foreach (['go.mod','go.sum','db','internal/licensing','internal/storage','internal/domain','internal/audit','internal/buildinfo','internal/licensefixture','testdata/license'] as $name) {

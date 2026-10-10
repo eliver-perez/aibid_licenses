@@ -41,9 +41,29 @@ final class AdministrationTest extends TestCase
     public function testMigrationIsRepeatableAndBootstrapIsSingleUse(): void
     {
         self::assertSame([], (new Migrator($this->fixture->owner, dirname(__DIR__,2).'/database/migrations'))->migrate());
-        self::assertSame('AIBID', $this->fixture->app->read->product('gestor_documental')['display_name']);
+        self::assertSame('AIDEX', $this->fixture->app->read->product('gestor_documental')['display_name']);
         $this->expectException(Problem::class);
         $this->fixture->app->auth->bootstrap('other@example.test','Otro','Fixture-Password-Only-2026!');
+    }
+
+    public function testIdentityMigrationPreservesCustomCatalogAndLicenseData(): void
+    {
+        $owner = $this->fixture->owner;
+        $app = $this->fixture->app;
+        $issued = $app->licenses->issue($this->actor, Uuid::create(), $this->issueInput());
+        $before = $app->read->license($issued['id']);
+        $capabilities = $app->read->capabilities('gestor_documental');
+        $owner->execute("UPDATE products SET display_name='Nombre propio',description='Descripción propia' WHERE product_id='gestor_documental'");
+        $sql = file_get_contents(dirname(__DIR__, 2).'/database/migrations/005_aidex_identity.sql');
+        $owner->pdo->exec($sql);
+        self::assertSame('Nombre propio', $app->read->product('gestor_documental')['display_name']);
+        $owner->execute("UPDATE products SET display_name='AIBID',description='Aplicación de Indexación de Bibliotecas Digitales' WHERE product_id='gestor_documental'");
+        $owner->pdo->exec($sql);
+        self::assertSame('AIDEX', $app->read->product('gestor_documental')['display_name']);
+        self::assertSame('Aplicación de Indexación Digital de Expedientes', $app->read->product('gestor_documental')['description']);
+        self::assertSame($before, $app->read->license($issued['id']));
+        self::assertSame($capabilities, $app->read->capabilities('gestor_documental'));
+        self::assertSame([], (new Migrator($owner, dirname(__DIR__, 2).'/database/migrations'))->migrate());
     }
 
     public function testPerpetualDoesNotIncludeMaintenanceAndKeyIsNeverArchived(): void
@@ -53,7 +73,7 @@ final class AdministrationTest extends TestCase
         $license=$app->read->license($result['id']);
         self::assertNull($license['expires_at']); self::assertNull($license['maintenance_until']);
         self::assertSame(0,(int)$license['grace_days']); self::assertSame(0,(int)$license['revision_counter']);
-        self::assertStringStartsWith('AIBID-',$result['secret']);
+        self::assertMatchesRegularExpression('/\AAIDEX-[A-Za-z0-9_-]{43}\z/',$result['secret']);
         self::assertSame('TEST-001', json_decode($license['history'][0]['snapshot_json'], true, 512, JSON_THROW_ON_ERROR)['commercial_reference']);
         $stored=$app->db->one('SELECT * FROM license_credentials WHERE license_id=?',[Uuid::bytes($result['id'])]);
         self::assertSame($app->crypto->digest('CREDENTIAL_KEY',$result['secret']),$stored['key_digest']);

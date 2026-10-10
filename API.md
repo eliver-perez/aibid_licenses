@@ -186,4 +186,4 @@ Refresh conserva el JWS y contador cuando no cambiaron derechos; funciona con un
 
 La desactivación online publica internamente una revisión `revoked` para la instalación saliente y conserva la licencia comercial `issued`. Su respuesta HTTP es únicamente el acuse B-02; la evidencia terminal se obtiene por refresh o descarga administrativa. Una activación posterior recibe otro UUID y el siguiente contador global. El acuse de referencia está en `contracts/v1/fixtures/deactivate-response.json`.
 
-Las fechas emitidas usan RFC 3339 UTC con seis decimales y `Z`. El JWS contiene los 18 campos superiores obligatorios; `features` es siempre objeto, incluidos productos sin capacidades. Los cinco módulos de AIBID son booleanos y los límites no establecidos son null.
+Las fechas emitidas usan RFC 3339 UTC con seis decimales y `Z`. El JWS contiene los 18 campos superiores obligatorios; `features` es siempre objeto, incluidos productos sin capacidades. Los cinco módulos de AIDEX son booleanos y los límites no establecidos son null.

@@ -1,4 +1,4 @@
-# Arquitectura del servidor AIBID
+# Arquitectura del servidor AIDEX
 
 Estado: diseño e implementación de etapas 1–5. Panel administrativo, firma/API online, solicitudes offline y transferencias disponibles. La etapa 5 comprueba localmente el cliente real mediante HTTPS/Nginx/FPM y añade respaldo cifrado y recuperación verificada. La instalación del VPS queda a cargo del usuario con [esta guía](DEPLOY_UBUNTU_24_04.md). Contrato de referencia: [V1.0](LICENSE_CONTRACT.md). Registro de decisiones: [DECISIONS.md](DECISIONS.md).
 

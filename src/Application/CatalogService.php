@@ -70,14 +70,14 @@ final class CatalogService
             throw new Problem('Esta combinación no respeta el catálogo del contrato V1.0.');
         }
         if ($productId === 'gestor_documental' && $feature !== 'review_workflow' && $required !== []) {
-            throw new Problem('Las dependencias de AIBID deben conservar el contrato V1.0.');
+            throw new Problem('Las dependencias de AIDEX deben conservar el contrato V1.0.');
         }
         return $this->operations->run($actor, ['superadmin'], $operationId, 'capability.save', [$productId, $feature, $name, $required], function () use ($actor, $productId, $feature, $name, $required): array {
             $product = $this->db->one('SELECT * FROM products WHERE product_id=? FOR UPDATE', [$productId]);
             if (!$product) { throw new Problem('No se encontró el producto.', 404); }
             $catalog = array_column($this->db->all('SELECT capability_key FROM product_capabilities WHERE product_id=?', [$productId]), 'capability_key');
             if ($productId === 'gestor_documental' && !in_array($feature, $catalog, true)) {
-                throw new Problem('El catálogo V1.0 de AIBID conserva sus cinco capacidades.');
+                throw new Problem('El catálogo V1.0 de AIDEX conserva sus cinco capacidades.');
             }
             foreach ($required as $dependency) {
                 if (!in_array($dependency, $catalog, true)) { throw new Problem('La capacidad requerida no existe en el producto.'); }

@@ -29,7 +29,7 @@ final class Totp
     {
         $otp = Otp::createFromSecret($secret, $this->clock);
         $otp->setLabel($login);
-        $otp->setIssuer('AIBID Licencias');
+        $otp->setIssuer('AIDEX Licencias');
         return $otp->getProvisioningUri();
     }
 }

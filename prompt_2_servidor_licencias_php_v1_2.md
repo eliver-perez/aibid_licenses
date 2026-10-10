@@ -1,3 +1,5 @@
+> Documento histórico de requisitos anterior a AIDEX. No es guía vigente ni se incluye en el paquete de producción. La identidad actual y el despliegue están en DESPLIEGUE-PRODUCCION.md.
+
 # PROMPT 2 — SERVIDOR INDEPENDIENTE DE LICENCIAS (ACTUALIZADO)
 
 **Versión del prompt:** 1.2 (stack PHP confirmado). **Contrato de licencias incorporado:** V1.0, idéntico al del gestor documental. Las actualizaciones funcionales del gestor NO requieren modificar este contrato.

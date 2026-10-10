@@ -57,7 +57,7 @@ El anexo establece que deactivate devuelve `activation_id`, `deactivated_at` y e
 | P-02 | Distribución de públicas y rotación | Cliente con conjunto de públicas confiables actuales/siguientes, entregado con distribución autenticada; cerrar el mecanismo offline antes de activar nuevas claves |
 | P-03 | Huella por SO | Candidatos y construcción en SECURITY; confirmar algoritmo ya existente en Go, app ID systemd, normalización y vectores. El servidor acepta hash/version como datos opacos |
 | P-04 | Cliente real | Resuelto localmente en etapa 5: copia aislada del código actual de `../expediente`, pruebas originales y flujos online/offline con el cliente real; hashes en `var/client-integration-report.json` |
-| P-05 | Entorno de integración | PHP/FPM 8.5.7, MySQL 8.4.11 aislado y Nginx 1.31.3 local por TLS. Usuario instalará Ubuntu 24.04/Nginx en aibid.adariel.com siguiendo la guía; XAMPP intacto |
+| P-05 | Entorno de integración | PHP/FPM 8.5.7, MySQL 8.4.11 aislado y Nginx 1.31.3 local por TLS. Usuario instalará Ubuntu 24.04/Nginx en licensing.aidex.com.mx siguiendo la guía; XAMPP intacto |
 | P-06 | Política operativa | Confirmar responsables de recuperación, redes privadas del panel y objetivos RPO/RTO antes del VPS; no bloquea dominio/API |
 
 ## 5. Limitaciones aceptadas por los requisitos
@@ -75,7 +75,7 @@ La entrega contiene arquitectura, esquema, matriz de estados, amenazas, rutas/fi
 
 ## 7. Concreciones de la etapa 2
 
-- Marca pública: **AIBID — Aplicación de Indexación de Bibliotecas Digitales**. Se conservan los cuatro SVG entregados; `product_id` sigue siendo `gestor_documental`.
+- Marca pública: **AIDEX — Aplicación de Indexación Digital de Expedientes**. Se conservan los cuatro SVG entregados; `product_id` sigue siendo `gestor_documental`.
 - Backend únicamente PHP. Go es un oráculo opcional de pruebas del contrato; Node/Playwright se usan solo para probar el navegador. Ninguno forma parte del despliegue del servidor.
 - Un contacto principal por cliente y fechas de interfaz en UTC. No se agregan funciones documentales.
 - `row_version` identifica cambios comerciales; `revision_counter` comienza en cero y desde etapa 3 aumenta con cada nueva firma. El publicador participa en la transacción comercial y una indisponibilidad de firma revierte el cambio completo.
@@ -104,7 +104,7 @@ La entrega contiene arquitectura, esquema, matriz de estados, amenazas, rutas/fi
 
 ## 10. Concreciones de etapa 5
 
-- Por instrucción expresa del usuario, todas las pruebas se ejecutan localmente y se entrega una guía para Ubuntu 24.04/Nginx en aibid.adariel.com. No se requiere IP/SSH para cerrar esta entrega.
+- Por instrucción expresa del usuario, todas las pruebas se ejecutan localmente y se entrega una guía para Ubuntu 24.04/Nginx en licensing.aidex.com.mx. No se requiere IP/SSH para cerrar esta entrega.
 - La integración usa una copia temporal del cliente real encontrado en `../expediente`. El servidor sigue en PHP y el cliente original no se edita. El conjunto de confianza real queda a cargo de la distribución del producto: las claves aleatorias del ensayo no se reutilizan en producción.
 - B-01/B-02 funcionan con sus métodos reales: desactivación online, importación de JWS revocado y refresh de origen transferido, con consulta/exportación conservadas. Se observa el indicador local de desactivación offline pendiente después del JWS terminal; se documenta como particularidad del cliente y no se amplía el contrato para ocultarla.
 - Se entrega respaldo diario cifrado y restauración ensayada, con anclaje externo como entrada explícita. RPO de 15 minutos/RTO de cuatro horas siguen siendo objetivos de operación; binlogs/custodia externa requieren configuración del operador. Ningún comando de recuperación habilita emisión automáticamente.

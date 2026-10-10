@@ -1,14 +1,14 @@
-# AIBID · Administración de licencias
+# AIDEX · Administración de licencias
 
 Etapas 1–5 (validación local) · Actualizado el 26 de septiembre de 2026.
 
-Servidor independiente en **PHP 8.3+ y MySQL 8**, con vistas PHP, Bootstrap 5 y JavaScript. El producto inicial se presenta como **AIBID — Aplicación de Indexación de Bibliotecas Digitales** y conserva el identificador contractual `gestor_documental`. Los cuatro logotipos SVG proporcionados se incluyen sin modificar.
+Servidor independiente en **PHP 8.3+ y MySQL 8**, con vistas PHP, Bootstrap 5 y JavaScript. El producto inicial se presenta como **AIDEX — Aplicación de Indexación Digital de Expedientes** y conserva el identificador contractual `gestor_documental`. Los cuatro logotipos SVG proporcionados se incluyen sin modificar.
 
 El panel permite administrar clientes y su contacto principal, productos, módulos, licencias perpetuas y suscripciones, compras de mantenimiento, renovaciones, credenciales comerciales y auditoría. Incluye bootstrap por CLI, roles, MFA obligatorio, recuperación de un solo uso, protección CSRF, reautenticación para acciones sensibles y transacciones idempotentes.
 
 **Alcance actual:** etapas 1–5 completadas para pruebas locales y entrega. Panel comercial, cuatro endpoints V1, firmas Ed25519/JWS, una instalación activa, revisiones e idempotencia. El panel importa `.licreq`, permite asignar licencia, aprobar/rechazar, renovar o desactivar offline y descargar el `.lic` archivado. Incluye transferencia atómica y recuperación de equipo averiado con reautenticación y auditoría. Se verificó el cliente real por HTTPS/Nginx/PHP-FPM y se ensayó respaldo cifrado/restauración. El usuario realizará el despliegue y sus comprobaciones en el VPS.
 
-**Para instalar en `aibid.adariel.com`: [guía Ubuntu 24.04 + Nginx](DEPLOY_UBUNTU_24_04.md).** Incluye paquete de código, PHP-FPM, MySQL, TLS, confianza del cliente, mantenimiento, timer de respaldo y recuperación. No requiere Go ni Node en producción.
+**Para instalar AIDEX 1.0 en `licensing.aidex.com.mx`: [guía de despliegue manual](DESPLIEGUE-PRODUCCION.md), con [receta Ubuntu 24.04 + Nginx](DEPLOY_UBUNTU_24_04.md).** Incluye paquete de código, PHP-FPM, MySQL, TLS, confianza del cliente, mantenimiento, timer de respaldo y recuperación. No requiere Go ni Node en producción.
 
 ## Ejecutar el panel
 
@@ -19,15 +19,15 @@ Se requiere PHP con Sodium, PDO MySQL, mbstring, XMLWriter y Argon2id; MySQL 8/I
 3. Generar la configuración y sus claves mediante CLI; la contraseña SQL se solicita de forma oculta:
 
    ```sh
-   php bin/configure.php --env=development --url=http://127.0.0.1:8088 --dsn='mysql:host=127.0.0.1;dbname=aibid_licenses;charset=utf8mb4' --user=aibid_app
-   php bin/migrate.php --user=aibid_migrate
-   php bin/grants.php --database=aibid_licenses --user=aibid_app
+   php bin/configure.php --env=development --url=http://127.0.0.1:8088 --dsn='mysql:host=127.0.0.1;dbname=aidex_licenses_dev;charset=utf8mb4' --user=aidex_dev_app
+   php bin/migrate.php --user=aidex_dev_migrate
+   php bin/grants.php --database=aidex_licenses_dev --user=aidex_dev_app
    ```
 
 4. Aplicar los GRANT impresos con una cuenta SQL autorizada. Crear el primer administrador, cuya contraseña también se pide por terminal:
 
    ```sh
-   php bin/bootstrap-admin.php --login=administrador@example.com --name='Administración AIBID'
+   php bin/bootstrap-admin.php --login=administrador@example.com --name='Administración AIDEX'
    php bin/preflight.php
    php -S 127.0.0.1:8088 -t public public/router.php
    ```
@@ -41,10 +41,10 @@ La raíz web debe ser **`public/`** y el sitio debe tener su propio origen, sin 
 En una instalación existente, conservar `config/local.php`, ejecutar la migración `003_online_activations.sql` mediante `bin/migrate.php` y aplicar los nuevos permisos de `bin/grants.php`. No volver a ejecutar bootstrap ni regenerar los secretos existentes.
 
 ```sh
-php bin/signing-key.php --action=generate --kid=lic-dev-2026-a --purpose=license --user=aibid_migrate
+php bin/signing-key.php --action=generate --kid=lic-dev-2026-a --purpose=license --user=aidex_dev_migrate
 php bin/signing-key.php --action=list
 # Después de incorporar la pública al cliente por un canal autenticado:
-php bin/signing-key.php --action=activate --kid=lic-dev-2026-a --reason='Pública distribuida a los clientes de este entorno' --trust-confirmed --user=aibid_migrate
+php bin/signing-key.php --action=activate --kid=lic-dev-2026-a --reason='Pública distribuida a los clientes de este entorno' --trust-confirmed --user=aidex_dev_migrate
 php bin/preflight.php --require-signer
 ```
 
@@ -61,7 +61,7 @@ composer test:contract
 env TEST_MYSQL_DSN='mysql:unix_socket=/ruta/mysql.sock;charset=utf8mb4' php vendor/bin/phpunit --testsuite integration
 ```
 
-Las pruebas crean bases y usuarios aleatorios `aibid_test_*`, aplican los permisos reales de aplicación y eliminan sus propios datos al finalizar. No apuntarlas a producción. La integración de respaldo necesita `mysql`/`mysqldump` de MySQL en PATH o `TEST_MYSQL_BIN`/`TEST_MYSQLDUMP_BIN` explícitos. [TEST_PLAN.md](TEST_PLAN.md) contiene reproducción y evidencia: 96 pruebas PHP/571 aserciones, más 2 pruebas del cliente real y stack HTTPS/83 aserciones. Go se usa para el oráculo y para ejecutar una copia temporal del cliente AIBID real: **el servidor no ejecuta Go ni requiere Go en el VPS**.
+Las pruebas crean bases y usuarios aleatorios `aibid_test_*`, aplican los permisos reales de aplicación y eliminan sus propios datos al finalizar. No apuntarlas a producción. La integración de respaldo necesita `mysql`/`mysqldump` de MySQL en PATH o `TEST_MYSQL_BIN`/`TEST_MYSQLDUMP_BIN` explícitos. [TEST_PLAN.md](TEST_PLAN.md) contiene reproducción y evidencia: 96 pruebas PHP/571 aserciones, más 2 pruebas del cliente real y stack HTTPS/83 aserciones. Go se usa para el oráculo y para ejecutar una copia temporal del cliente AIDEX real: **el servidor no ejecuta Go ni requiere Go en el VPS**.
 
 ## Documentación
 
@@ -74,7 +74,9 @@ Las pruebas crean bases y usuarios aleatorios `aibid_test_*`, aplican los permis
 | [SECURITY.md](SECURITY.md) | Controles implementados y diseño de seguridad restante |
 | [LICENSE_CONTRACT.md](LICENSE_CONTRACT.md) | Anexo V1.0 literal, sin modificaciones |
 | [OPERATIONS.md](OPERATIONS.md) | Instalación del panel y preparación del VPS |
-| [DEPLOY_UBUNTU_24_04.md](DEPLOY_UBUNTU_24_04.md) | Instalación concreta en aibid.adariel.com y recuperación |
+| [DESPLIEGUE-PRODUCCION.md](DESPLIEGUE-PRODUCCION.md) | Requisitos, configuración y verificaciones para producción |
+| [INFORME-TRANSICION-AIDEX.md](INFORME-TRANSICION-AIDEX.md) | Auditoría de identidad y pruebas de esta transición |
+| [DEPLOY_UBUNTU_24_04.md](DEPLOY_UBUNTU_24_04.md) | Instalación concreta en licensing.aidex.com.mx y recuperación |
 | [DECISIONS.md](DECISIONS.md) | Decisiones aceptadas B-01/B-02 y coordinación pendiente |
 | [TEST_PLAN.md](TEST_PLAN.md) | Comandos, evidencia y pruebas de las próximas etapas |
 

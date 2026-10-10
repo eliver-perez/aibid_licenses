@@ -2,6 +2,9 @@
 declare(strict_types=1);
 
 ini_set('display_errors', '0');
+ini_set('display_startup_errors', '0');
+ini_set('log_errors', '1');
+ini_set('zend.exception_ignore_args', '1');
 date_default_timezone_set('UTC');
 header('Content-Type: text/html; charset=utf-8');
 header('Cache-Control: no-store, private, max-age=0');
@@ -22,12 +25,12 @@ try {
     $bytes[8] = chr((ord($bytes[8]) & 0x3f) | 0x80);
     $hex = bin2hex($bytes);
     $reference = substr($hex, 0, 8) . '-' . substr($hex, 8, 4) . '-' . substr($hex, 12, 4) . '-' . substr($hex, 16, 4) . '-' . substr($hex, 20);
-    error_log('AIBID [' . $reference . '] ' . get_class($error) . ' at ' . basename($error->getFile()) . ':' . $error->getLine());
+    error_log('AIDEX [' . $reference . '] ' . get_class($error) . ' at ' . basename($error->getFile()) . ':' . $error->getLine());
     http_response_code(503);
     if (str_starts_with($_SERVER['REQUEST_URI'] ?? '', '/v1/')) {
         header('Content-Type: application/json; charset=utf-8');
         echo json_encode(['error' => ['code' => 'TEMPORARY_UNAVAILABLE', 'message' => 'El servicio no está disponible temporalmente.', 'request_id' => $reference]]);
     } else {
-        echo '<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AIBID · Servicio no disponible</title><link rel="stylesheet" href="/assets/app.css"><main class="service-message"><img src="/assets/brand/logo-h.svg" alt="AIBID"><h1>El panel no está disponible temporalmente</h1><p>Intenta nuevamente en unos minutos. Si persiste, consulta al administrador del servidor.</p><small>Referencia: ' . $reference . '</small></main></html>';
+        echo '<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AIDEX · Servicio no disponible</title><link rel="icon" type="image/svg+xml" href="/assets/brand/logo-v.svg"><link rel="stylesheet" href="/assets/app.css"><main class="service-message"><img src="/assets/brand/logo-h.svg" alt="AIDEX"><h1>El panel no está disponible temporalmente</h1><p>Intenta nuevamente en unos minutos. Si persiste, consulta al administrador del servidor.</p><small>Referencia: ' . $reference . '</small></main></html>';
     }
 }

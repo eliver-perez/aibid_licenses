@@ -1,6 +1,6 @@
 {
-  "name": "aibid/license-server",
-  "description": "Panel y servidor independiente de licencias AIBID",
+  "name": "aidex/license-server",
+  "description": "Panel y servidor independiente de licencias AIDEX",
   "type": "project",
   "license": "proprietary",
   "require": {

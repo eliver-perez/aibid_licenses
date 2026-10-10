@@ -19,9 +19,9 @@ La verificación de etapa 2 utilizó una instancia temporal independiente de MyS
 
 ## 2. Topología y configuración
 
-VPS Ubuntu con Nginx expuesto solo por HTTPS, pool PHP-FPM dedicado por socket Unix y MySQL sin puerto público. Raíz web `/srv/aibidlicense/current/public`; versiones en directorios separados y datos persistentes fuera del árbol de releases. Desactivar listado de directorios, denegar dotfiles y servir PHP únicamente mediante el front controller previsto.
+VPS Ubuntu con Nginx expuesto solo por HTTPS, pool PHP-FPM dedicado por socket Unix y MySQL sin puerto público. Raíz web `/srv/aidexlicense/current/public`; versiones en directorios separados y datos persistentes fuera del árbol de releases. Desactivar listado de directorios, denegar dotfiles y servir PHP únicamente mediante el front controller previsto.
 
-Configuración de entorno requerida: nombre de entorno, URL base, DSN/usuario/secreto MySQL, registro de claves por propósito, referencias a secretos, proxies confiables, redes autorizadas del panel, límites de tasa/tamaño y parámetros de sesión. `config/local.example.php` contiene nombres y marcadores; `bin/configure.php` genera la configuración real. Las variables de entorno prevalecen sobre ese archivo y `AIBID_CONFIG` permite indicar una ubicación externa. La configuración de producción no se sirve como archivo web ni se imprime en diagnósticos.
+Configuración de entorno requerida: nombre de entorno, URL base, DSN/usuario/secreto MySQL, registro de claves por propósito, referencias a secretos, redes autorizadas del panel, límites de tasa/tamaño y parámetros de sesión. `config/local.example.php` contiene nombres y marcadores; `bin/configure.php` genera la configuración real. Las variables de entorno prevalecen sobre ese archivo y `AIBID_CONFIG` permite indicar una ubicación externa. La configuración de producción no se sirve como archivo web ni se imprime en diagnósticos.
 
 Permisos: código de solo lectura para FPM, acceso de lectura a sus claves protegidas, escritura únicamente a directorios temporales necesarios. MySQL con usuarios distintos para app, migración y respaldo. Cuenta app sin DDL ni permisos de modificar/borrar historia inmutable. Logs, archivos temporales y respaldos fuera de `public/`. Desactivar `display_errors`, ajustar límites de memoria/tiempo y no incluir dumps de entorno en errores.
 
@@ -81,26 +81,26 @@ El paquete V1 solo puede publicarse cuando incluya también activación/renovaci
 
 ## 7. Instalación disponible del panel
 
-Preparar MySQL 8 con una base vacía `aibid_licenses` (utf8mb4/InnoDB), una cuenta `aibid_migrate` restringida a esa base con permisos DDL/DML y una cuenta `aibid_app` inicialmente sin permisos. Ambas cuentas deben tener contraseñas aleatorias propias; crearlas con la administración habitual del servidor. No incluir contraseñas reales en argumentos de shell ni en este repositorio.
+Preparar MySQL 8 con una base vacía `aidex_licenses` (utf8mb4/InnoDB), una cuenta `aidex_migrate` restringida a esa base con permisos DDL/DML y una cuenta `aidex_app` inicialmente sin permisos. Ambas cuentas deben tener contraseñas aleatorias propias; crearlas con la administración habitual del servidor. No incluir contraseñas reales en argumentos de shell ni en este repositorio.
 
 ```sh
 composer install --no-dev --prefer-dist --optimize-autoloader
-php bin/configure.php --env=production --url=https://licencias.example.com --dsn='mysql:host=127.0.0.1;dbname=aibid_licenses;charset=utf8mb4' --user=aibid_app
-php bin/migrate.php --user=aibid_migrate
-php bin/grants.php --database=aibid_licenses --user=aibid_app
+php bin/configure.php --env=production --url=https://licensing.aidex.com.mx --dsn='mysql:host=127.0.0.1;dbname=aidex_licenses;charset=utf8mb4' --user=aidex_app
+php bin/migrate.php --user=aidex_migrate
+php bin/grants.php --database=aidex_licenses --user=aidex_app
 ```
 
-`configure` pide el secreto de aplicación SQL y crea cinco claves de 32 bytes independientes. `migrate --user` pide la contraseña de migración y no la persiste. `grants` imprime SQL para la cuenta `'aibid_app'@'localhost'`; aplicar ese SQL con la cuenta administradora de MySQL, antes de iniciar el panel. El DSN y el host de la cuenta deben corresponder al despliegue; el ejemplo asume app y MySQL en el mismo equipo. Las migraciones no conceden permisos globales.
+`configure` pide el secreto de aplicación SQL y crea cinco claves de 32 bytes independientes. `migrate --user` pide la contraseña de migración y no la persiste. `grants` imprime SQL para la cuenta `'aidex_app'@'localhost'`; aplicar ese SQL con la cuenta administradora de MySQL, antes de iniciar el panel. El DSN y el host de la cuenta deben corresponder al despliegue; el ejemplo asume app y MySQL en el mismo equipo. Las migraciones no conceden permisos globales.
 
 ```sh
-php bin/bootstrap-admin.php --login=administrador@example.com --name='Administración AIBID'
+php bin/bootstrap-admin.php --login=administrador@example.com --name='Administración AIDEX'
 php bin/preflight.php
 php bin/audit-verify.php
 ```
 
 El bootstrap solo funciona cuando no hay administradores. Las contraseñas se introducen dos veces por una terminal interactiva, sin eco. El primer acceso exige enrolar TOTP y muestra ocho códigos de recuperación una sola vez. No existen credenciales de producción predeterminadas.
 
-Publicar únicamente `public/`. El ejemplo `deploy/nginx.conf.example` contiene TLS y un socket FPM que deben adaptarse al VPS. En producción el panel lee HTTPS de Nginx/FPM directamente, sin confiar en encabezados de proxy arbitrarios. `ADMIN_NETWORKS` puede contener CIDR separados por comas; vacío permite cualquier red que supere la autenticación. Las rutas no soportan instalar el panel en `/aibidlicense/`: usar un dominio/virtual host propio.
+Publicar únicamente `public/`. El ejemplo `deploy/nginx.conf.example` contiene TLS y un socket FPM que deben adaptarse al VPS. En producción el panel lee HTTPS de Nginx/FPM directamente, sin confiar en encabezados de proxy arbitrarios. `ADMIN_NETWORKS` puede contener CIDR separados por comas; vacío permite cualquier red que supere la autenticación. Las rutas no soportan instalar el panel en un subdirectorio como `/aidexlicense/`: usar un dominio/virtual host propio.
 
 En desarrollo se puede usar `--env=development --url=http://127.0.0.1:8088` y `php -S 127.0.0.1:8088 -t public public/router.php`. El servidor integrado de PHP sirve solo para pruebas locales, no es el servicio de producción. El panel de pruebas usa `AIBID_CONFIG` en `/private/tmp` para no crear ni alterar la configuración real.
 
@@ -124,10 +124,10 @@ Los cuatro SVG de `public/assets/brand/` se copiaron sin cambios de los archivos
 
 ## 8. Claves y API online disponibles en etapa 3
 
-La actualización agrega `003_online_activations.sql`. Conservar la configuración y las cinco claves de aplicación existentes; ejecutar `php bin/migrate.php --user=aibid_migrate` y aplicar el SQL actualizado que imprime `bin/grants.php`. Las migraciones 001/002 no se reescribieron. Antes del primer uso online, preparar un firmante del entorno:
+La actualización agrega `003_online_activations.sql`. Conservar la configuración y las cinco claves de aplicación existentes; ejecutar `php bin/migrate.php --user=aidex_migrate` y aplicar el SQL actualizado que imprime `bin/grants.php`. Las migraciones 001/002 no se reescribieron. Antes del primer uso online, preparar un firmante del entorno:
 
 ```sh
-php bin/signing-key.php --action=generate --kid=lic-prod-2026-a --purpose=license --user=aibid_migrate
+php bin/signing-key.php --action=generate --kid=lic-prod-2026-a --purpose=license --user=aidex_migrate
 php bin/signing-key.php --action=list
 ```
 
@@ -138,13 +138,13 @@ El comando genera una privada aleatoria, registra una pública inicialmente `sta
 Distribuir la pública al conjunto de confianza del cliente por su canal autenticado. Este servidor no añade una ruta `/v1/keys` ni permite que una licencia elija una URL de claves. Solo después de verificar esa confianza:
 
 ```sh
-php bin/signing-key.php --action=activate --kid=lic-prod-2026-a --reason='Pública distribuida y verificada en clientes' --trust-confirmed --user=aibid_migrate
+php bin/signing-key.php --action=activate --kid=lic-prod-2026-a --reason='Pública distribuida y verificada en clientes' --trust-confirmed --user=aidex_migrate
 php bin/preflight.php --require-signer
 ```
 
 `--trust-confirmed` es una confirmación explícita del operador; no automatiza la distribución ni demuestra que cada instalación haya recibido la pública. El comando selecciona la clave del ámbito bajo bloqueo exclusivo, cambia la anterior a `verify_only` y conserva el historial. Repetir la selección de la misma clave no produce otra rotación. No eliminar públicas antiguas necesarias para perpetuas.
 
-Configurar `SIGNING_KEY_DIR` con un directorio absoluto persistente fuera de `public/`, por ejemplo `/srv/aibidlicense/secrets/production-licenses`. Por defecto se usa `var/keys/<APP_ENV>`, útil en desarrollo. Los archivos son 0600; ejecutar la generación con el usuario dedicado que podrá leerlos desde PHP-FPM o ajustar propietario/permisos mediante la administración del VPS. Evitar un directorio efímero de release para producción y respaldar las privadas por separado. El cargador rechaza archivos públicos, enlaces de archivo, permisos abiertos y metadatos/par incompatibles.
+Configurar `SIGNING_KEY_DIR` con un directorio absoluto persistente fuera de `public/`, por ejemplo `/srv/aidexlicense/secrets/production-licenses`. Por defecto se usa `var/keys/<APP_ENV>`, útil en desarrollo. Los archivos son 0600; ejecutar la generación con el usuario dedicado que podrá leerlos desde PHP-FPM o ajustar propietario/permisos mediante la administración del VPS. Evitar un directorio efímero de release para producción y respaldar las privadas por separado. El cargador rechaza archivos públicos, enlaces de archivo, permisos abiertos y metadatos/par incompatibles.
 
 Si la BD pierde conexión durante el registro de una clave, la CLI conserva el archivo privado por posible commit ambiguo. Conciliar archivo/registro antes de reintentar; no borrar automáticamente una privada que podría estar registrada. Las operaciones online reintentan deadlocks/timeouts conocidos como máximo dos veces; ante una conexión perdida durante commit se debe repetir el mismo request, sin asumir que falló.
 
@@ -157,8 +157,8 @@ Las cuatro rutas V1 ya están disponibles. El panel no requiere un firmante para
 Para una instalación de etapa 3, conservar `config/local.php`, todas sus claves y el directorio de firmantes. Aplicar `004_offline_requests.sql` con el migrador y actualizar GRANT de runtime:
 
 ```sh
-php bin/migrate.php --user=aibid_migrate
-php bin/grants.php --database=aibid_licenses --user=aibid_app
+php bin/migrate.php --user=aidex_migrate
+php bin/grants.php --database=aidex_licenses --user=aidex_app
 # Aplicar el SQL generado mediante la cuenta administradora de esta BD.
 php bin/preflight.php --require-signer
 php bin/audit-verify.php
@@ -180,7 +180,7 @@ Ante error 503, no asumir commit fallido: consultar la solicitud y su historial 
 
 ## 10. Entrega de etapa 5
 
-Para el destino confirmado por el usuario usar [DEPLOY_UBUNTU_24_04.md](DEPLOY_UBUNTU_24_04.md): aibid.adariel.com, Ubuntu 24.04, Nginx/PHP-FPM y MySQL 8. Toda la validación se realizó localmente; la guía contiene los comandos finales para el operador, sin acceso remoto desde esta sesión.
+Para el dominio final consultar [DESPLIEGUE-PRODUCCION.md](DESPLIEGUE-PRODUCCION.md); la alternativa Ubuntu/Nginx está en [DEPLOY_UBUNTU_24_04.md](DEPLOY_UBUNTU_24_04.md): licensing.aidex.com.mx, Ubuntu 24.04, Nginx/PHP-FPM y MySQL 8. Toda la validación se realizó localmente; la guía contiene los comandos finales para el operador, sin acceso remoto desde esta sesión.
 
 `configure --output` permite guardar la configuración fuera del release; `--signing-dir` fija las privadas persistentes. No repetir configure en una actualización. `backup.php` crea/verifica archivos cifrados; `restore-empty.php` importa solo a una base vacía; `recovery-config.php` conserva las cinco claves de la copia y solicita la contraseña del destino sin eco; `recovery-check.php --against` verifica historia contra un anclaje previo externo. La guía documenta permisos, mantenimiento, timer, copia externa, rotación y recuperación de una copia atrasada.
 
