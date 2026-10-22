@@ -26,6 +26,20 @@ final class RecoveryVerifier
                 ++$revisions;
             }
             if ($app->db->one("SELECT a.activation_id FROM activations a LEFT JOIN license_revisions r ON r.revision_id=a.current_revision_id WHERE r.revision_id IS NULL OR r.activation_id<>a.activation_id OR r.license_id<>a.license_id OR (a.state<>'active' AND r.license_status<>'revoked') OR r.license_revision<>(SELECT MAX(h.license_revision) FROM license_revisions h WHERE h.activation_id=a.activation_id) LIMIT 1")) { throw new \RuntimeException('Activation history pointer mismatch.'); }
+            foreach ($app->db->execute('SELECT credential_id,key_digest,credential_encrypted FROM license_credentials WHERE credential_encrypted IS NOT NULL') as $row) {
+                $secret=$app->crypto->open($row['credential_encrypted'],'credential:'.Uuid::text($row['credential_id']),'activation-code');
+                try { if (!hash_equals($row['key_digest'],$app->crypto->digest('CREDENTIAL_KEY',$secret))) { throw new \RuntimeException('Credential digest mismatch.'); } }
+                finally { sodium_memzero($secret); }
+            }
+            foreach ($app->db->execute('SELECT id,pdf_encrypted,pdf_sha256,snapshot_encrypted,verification_digest FROM license_documents') as $row) {
+                $id=Uuid::text($row['id']);
+                $pdf=$app->crypto->open($row['pdf_encrypted'],'document-pdf:'.$id,'document');
+                try { if (!hash_equals($row['pdf_sha256'],hash('sha256',$pdf))) { throw new \RuntimeException('Document checksum mismatch.'); } }
+                finally { sodium_memzero($pdf); }
+                $snapshot=$app->crypto->open($row['snapshot_encrypted'],'document-snapshot:'.$id,'document');
+                try { $data=json_decode($snapshot,true,32,JSON_THROW_ON_ERROR); if (!hash_equals($row['verification_digest'],hash('sha256',basename($data['verification_url'])))) { throw new \RuntimeException('Document verification mismatch.'); } }
+                finally { sodium_memzero($snapshot); }
+            }
             $offline = 0;
             foreach ($app->db->execute('SELECT o.*,r.input_digest FROM offline_requests o JOIN license_requests r ON r.product_id=o.product_id AND r.request_id=o.request_id') as $row) {
                 $original = $app->crypto->decryptEvidence($row['evidence_encrypted'],'offline:v1:'.Uuid::text($row['id']));

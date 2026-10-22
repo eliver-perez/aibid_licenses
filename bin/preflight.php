@@ -4,7 +4,7 @@ require __DIR__ . '/console.php';
 
 consoleRun(function (): void {
     if (PHP_VERSION_ID < 80300) { throw new Aibid\Domain\Problem('Se requiere PHP 8.3 o superior.'); }
-    foreach (['sodium','pdo_mysql','mbstring','xmlwriter'] as $extension) { if (!extension_loaded($extension)) { throw new Aibid\Domain\Problem('Falta la extensión ' . $extension); } }
+    foreach (['sodium','pdo_mysql','mbstring','xmlwriter','dom','iconv','gd'] as $extension) { if (!extension_loaded($extension)) { throw new Aibid\Domain\Problem('Falta la extensión ' . $extension); } }
     if (!in_array('argon2id', password_algos(), true)) { throw new Aibid\Domain\Problem('Argon2id no está disponible.'); }
     $app = Aibid\App::boot();
     $version = $app->db->execute('SELECT VERSION()')->fetchColumn();
@@ -17,7 +17,7 @@ consoleRun(function (): void {
         }
     }
     if (!$app->config->development()) {
-        foreach (['audit_events','license_changes','subscription_periods','maintenance_purchases','license_revisions','offline_requests','offline_decisions','license_transfers'] as $table) {
+        foreach (['audit_events','license_changes','subscription_periods','maintenance_purchases','license_revisions','offline_requests','offline_decisions','license_transfers','license_administrative_changes','license_documents'] as $table) {
             foreach (['UPDATE ' . $table . ' SET id=id WHERE 1=0', 'DELETE FROM ' . $table . ' WHERE 1=0'] as $sql) {
                 if ($table === 'audit_events') { $sql = str_replace('SET id=id', 'SET sequence=sequence', $sql); }
                 if ($table === 'offline_decisions') { $sql = str_replace('SET id=id', 'SET offline_id=offline_id', $sql); }

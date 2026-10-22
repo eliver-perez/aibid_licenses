@@ -1,3 +1,5 @@
+> Actualización vigente de fase comercial 1: [INTEGRACION-LICENCIAMIENTO.md](INTEGRACION-LICENCIAMIENTO.md). Los cuatro endpoints y formatos V1 se conservan; las claves online nuevas usan 3-4-4-4 sin prefijo.
+
 # API y formatos de intercambio V1
 
 El [anexo literal](LICENSE_CONTRACT.md) es la fuente normativa. Este documento lo organiza y propone detalles operativos donde el anexo no los fija. No se agregan rutas ni campos obligatorios. Las interpretaciones B-01/B-02 están aceptadas en [DECISIONS.md](DECISIONS.md). Los cuatro endpoints online ya están implementados y verificados en etapa 3. La sección de archivos offline está implementada en etapa 4 mediante el panel privado.

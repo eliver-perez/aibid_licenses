@@ -148,7 +148,8 @@ final class OfflineTest extends TestCase
     public function testSignedDeactivationReleasesSlotAndLeavesTerminalRevision(): void
     {
         $active = $this->activate(); $id = $this->import($this->envelope('deactivate',$active));
-        $terminal = $this->payload($this->approve($id)); self::assertSame('revoked',$terminal['license_status']);
+        try { $this->approve($id); self::fail('Release without exceptional acknowledgement'); } catch(Problem $error) { self::assertSame(422,$error->status); }
+        $terminal = $this->payload($this->approve($id,['accept_offline_limit'=>'1'])); self::assertSame('revoked',$terminal['license_status']);
         self::assertSame('issued',$this->app->read->license($this->license['id'])['commercial_status']);
         $this->device = $this->device(); $next = $this->activate();
         self::assertNotSame($active['activation_id'],$next['activation_id']); self::assertSame(3,$next['license_revision']);

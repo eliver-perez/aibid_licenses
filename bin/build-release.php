@@ -17,7 +17,7 @@ consoleRun(function (): void {
             if ($entry->isFile()) { $files[]=substr($entry->getPathname(),strlen($root)+1); }
         }
     }
-    foreach (['composer.json','composer.lock','config/local.example.php','README.md','ARCHITECTURE.md','SCHEMA.md','API.md','SECURITY.md','LICENSE_CONTRACT.md','OPERATIONS.md','DECISIONS.md','DEPLOY_UBUNTU_24_04.md','STATUS.md','TEST_PLAN.md','DESPLIEGUE-PRODUCCION.md','INFORME-TRANSICION-AIDEX.md'] as $file) { $files[]=$file; }
+    foreach (['composer.json','composer.lock','config/local.example.php','README.md','ARCHITECTURE.md','SCHEMA.md','API.md','SECURITY.md','LICENSE_CONTRACT.md','OPERATIONS.md','DECISIONS.md','DEPLOY_UBUNTU_24_04.md','STATUS.md','TEST_PLAN.md','DESPLIEGUE-PRODUCCION.md','INFORME-TRANSICION-AIDEX.md','LICENCIAMIENTO-COMERCIAL-FASE1.md','INTEGRACION-LICENCIAMIENTO.md','ACTUALIZACION-FASE1.md'] as $file) { $files[]=$file; }
     sort($files); $hashes = [];
     try {
         $archive = new PharData($tar);

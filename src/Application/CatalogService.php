@@ -16,6 +16,7 @@ final class CatalogService
             'contact_name' => Input::text($input, 'contact_name'),
             'email' => Input::email(Input::text($input, 'email', 190, false)),
             'phone' => Input::text($input, 'phone', 60, false),
+            'tax_id' => Input::text($input, 'tax_id', 32, false),
             'state' => Input::choice($input, 'state', ['active', 'archived']),
             'version' => (int) ($input['version'] ?? 0),
         ];
@@ -32,6 +33,7 @@ final class CatalogService
                 $this->db->execute('UPDATE customers SET display_name=?,legal_name=?,state=?,row_version=row_version+1,updated_at=? WHERE id=?', [$values['name'], $values['legal_name'], $values['state'], $this->clock->sql(), $bytes]);
                 $this->db->execute('UPDATE customer_contacts SET name=?,email=?,phone=? WHERE customer_id=?', [$values['contact_name'], $values['email'], $values['phone'], $bytes]);
             }
+            $this->db->execute('UPDATE customers SET tax_id=? WHERE id=?', [$values['tax_id'], $bytes]);
             $this->audit->append($actor->id, $id === null ? 'customer.created' : 'customer.updated', 'customer', $customerId, ['state' => $values['state']]);
             return ['id' => $customerId];
         });

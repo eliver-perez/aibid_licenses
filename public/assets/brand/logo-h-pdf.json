@@ -1,0 +1,15 @@
+{
+  "source": "logo-h.svg",
+  "source_sha256": "16daf9e661fb5f4bbd231f9984aec853d29e66dfb291a64de3c8dfdfc35a39fb",
+  "purpose": "Deterministic PDF raster fallback; original SVG preserved. No redesign or image generation.",
+  "viewport": [
+    720,
+    130
+  ],
+  "pixel_size": [
+    1440,
+    260
+  ],
+  "renderer": "155.0.8059.85",
+  "derivative_sha256": "c9286c3108aec7580af48054854dc4bad4cbf71cf98431e38d6b7db701b29046"
+}

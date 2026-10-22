@@ -2,7 +2,7 @@
 declare(strict_types=1);
 namespace Aibid\Application;
 
-use Aibid\Domain\{ApiProblem, ApiResponse, Protocol, Uuid};
+use Aibid\Domain\{ActivationCode, ApiProblem, ApiResponse, Protocol, Uuid};
 use Aibid\Infrastructure\{Audit, Clock, Crypto, Database, RateLimiter};
 
 final class ActivationService
@@ -21,6 +21,11 @@ final class ActivationService
     public function execute(string $action, array $input): ApiResponse
     {
         $input = Protocol::input($action, $input);
+        if ($action === 'activate') {
+            $normalized = ActivationCode::normalize($input['license_key']);
+            if ($normalized !== null) { $input['license_key'] = $normalized; }
+            $this->rate->consume('api-code', $input['product_id'].':'.$input['license_key'], 10, 900);
+        }
         $requestBytes = Uuid::bytes($input['request_id']);
         $digest = $this->crypto->digest('OPERATION_KEY', 'protocol-v1:online:' . $action . "\n" . Protocol::json($input));
         $saved = $this->db->one('SELECT * FROM license_requests WHERE product_id=? AND request_id=?', [$input['product_id'],$requestBytes]);
@@ -59,6 +64,7 @@ final class ActivationService
 
     private function activate(array $input): ApiResponse
     {
+        if (ActivationCode::normalize($input['license_key']) === null) { return $this->failure('LICENSE_NOT_FOUND',404,$input); }
         $digest = $this->crypto->digest('CREDENTIAL_KEY', $input['license_key']);
         $candidate = $this->db->one('SELECT c.license_id FROM license_credentials c JOIN licenses l ON l.license_id=c.license_id WHERE c.key_digest=? AND c.digest_key_version=1 AND l.product_id=?', [$digest,$input['product_id']]);
         if (!$candidate) { return $this->failure('LICENSE_NOT_FOUND', 404, $input); }

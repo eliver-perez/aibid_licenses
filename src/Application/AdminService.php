@@ -17,11 +17,13 @@ final class AdminService
         $password = $input['new_password'] ?? '';
         if (!is_string($password)) { throw new Problem('La contraseña no es válida.'); }
         Input::password($password);
-        return $this->operations->run($actor, ['superadmin'], $operationId, 'admin.create', [$login, $name, $role, $password], function () use ($actor, $login, $name, $role, $password): array {
+        $permissions = $this->permissions($input);
+        return $this->operations->run($actor, ['superadmin'], $operationId, 'admin.create', [$login, $name, $role, $password, $permissions], function () use ($actor, $login, $name, $role, $password, $permissions): array {
             $this->db->one('SELECT id FROM security_state WHERE id=1 FOR UPDATE');
             if ($this->db->one('SELECT id FROM admin_users WHERE login=?', [$login])) { throw new Problem('Ya existe una cuenta con ese correo.'); }
             $id = $this->auth->insertUser($login, $name, $password, $role);
-            $this->audit->append($actor->id, 'admin.created', 'admin', $id, ['role' => $role]);
+            $this->savePermissions($id, $role === 'operator' ? $permissions : []);
+            $this->audit->append($actor->id, 'admin.created', 'admin', $id, ['role' => $role, 'permissions'=>$role === 'operator' ? $permissions : []]);
             return ['id' => $id];
         });
     }
@@ -31,7 +33,8 @@ final class AdminService
         $role = Input::choice($input, 'role', ['superadmin', 'operator', 'viewer']);
         $state = Input::choice($input, 'state', ['active', 'disabled']);
         $reason = Input::text($input, 'reason', 500);
-        return $this->operations->run($actor, ['superadmin'], $operationId, 'admin.update', [$id, $role, $state, $reason], function () use ($actor, $id, $role, $state, $reason): array {
+        $permissions = $this->permissions($input);
+        return $this->operations->run($actor, ['superadmin'], $operationId, 'admin.update', [$id, $role, $state, $reason, $permissions], function () use ($actor, $id, $role, $state, $reason, $permissions): array {
             $this->db->one('SELECT id FROM security_state WHERE id=1 FOR UPDATE');
             $user = $this->db->one('SELECT * FROM admin_users WHERE id=? FOR UPDATE', [Uuid::bytes($id)]);
             if (!$user) { throw new Problem('No se encontró la cuenta.', 404); }
@@ -40,9 +43,25 @@ final class AdminService
                 if ($superadmins <= 1) { throw new Problem('Debe quedar al menos un superadministrador activo.'); }
             }
             $this->db->execute('UPDATE admin_users SET role=?,state=?,updated_at=? WHERE id=?', [$role, $state, $this->clock->sql(), $user['id']]);
+            $oldPermissions = array_column($this->db->all('SELECT permission FROM admin_permission_grants WHERE admin_id=?',[$user['id']]),'permission');
+            $this->savePermissions($id, $role === 'operator' ? $permissions : []);
             $this->db->execute('UPDATE admin_sessions SET revoked_at=?,enrollment_secret=NULL WHERE admin_id=?', [$this->clock->sql(), $user['id']]);
-            $this->audit->append($actor->id, 'admin.updated', 'admin', $id, ['role' => $role, 'state' => $state], $reason);
+            $this->audit->append($actor->id, 'admin.updated', 'admin', $id, ['role' => $role, 'state' => $state, 'previous_permissions'=>$oldPermissions, 'permissions'=>$role === 'operator' ? $permissions : []], $reason);
             return ['id' => $id];
         });
+    }
+
+    private function permissions(array $input): array
+    {
+        $values = $input['permissions'] ?? [];
+        if (!is_array($values) || count($values)>count(Actor::PERMISSIONS)) { throw new Problem('Permisos no válidos.'); }
+        foreach ($values as $value) { if (!is_string($value) || !isset(Actor::PERMISSIONS[$value])) { throw new Problem('Permiso no válido.'); } }
+        $values = array_values(array_unique($values)); sort($values); return $values;
+    }
+
+    private function savePermissions(string $id, array $permissions): void
+    {
+        $this->db->execute('DELETE FROM admin_permission_grants WHERE admin_id=?',[Uuid::bytes($id)]);
+        foreach ($permissions as $permission) { $this->db->execute('INSERT INTO admin_permission_grants(admin_id,permission) VALUES (?,?)',[Uuid::bytes($id),$permission]); }
     }
 }

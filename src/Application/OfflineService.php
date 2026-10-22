@@ -47,8 +47,10 @@ final class OfflineService
         $reference = $mode === 'extend' ? Input::text($input, 'reference',190,true) : '';
         $outgoing = $decision === 'approved' ? Input::text($input, 'force_activation_id',36,false) : '';
         $accepted = ($input['accept_offline_limit'] ?? '') === '1';
-        if ($outgoing !== '' && !$accepted) { throw new Problem('Confirma el límite de revocación offline.'); }
-        $roles = $outgoing === '' ? ['superadmin','operator'] : ['superadmin'];
+        $projection = $this->db->one('SELECT projection_json FROM offline_requests WHERE id=?',[Uuid::bytes($id)]) ?? throw new Problem('No se encontró la solicitud.',404);
+        $deactivating = $decision==='approved' && (json_decode($projection['projection_json'],true,16,JSON_THROW_ON_ERROR)['action'] ?? '')==='deactivate';
+        if (($outgoing !== '' || $deactivating) && !$accepted) { throw new Problem('Confirma el límite de revocación offline: la firma no demuestra el borrado de copias del equipo anterior.'); }
+        $roles = $outgoing === '' && !$deactivating ? ['superadmin','operator'] : ['superadmin'];
         return $this->operations->run($actor, $roles, $operationId, 'offline.' . $decision, [$id,$reason,$licenseId,$version,$mode,$until?->format(DATE_ATOM),$reference,$outgoing,$accepted], function () use ($actor,$id,$decision,$reason,$licenseId,$version,$mode,$until,$reference,$outgoing): array {
             $offline = $this->db->one('SELECT * FROM offline_requests WHERE id=?', [Uuid::bytes($id)]) ?? throw new Problem('No se encontró la solicitud.',404);
             $request = $this->db->one('SELECT * FROM license_requests WHERE product_id=? AND request_id=? FOR UPDATE', [$offline['product_id'],$offline['request_id']]);

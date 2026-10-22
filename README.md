@@ -1,5 +1,7 @@
 # AIDEX · Administración de licencias
 
+**Fase comercial 1:** códigos 3-4-4-4 sin prefijo, credenciales recuperables bajo permiso/MFA, referencia y nota opcionales/editables, constancias PDF con historial y verificación pública. [Informe](LICENCIAMIENTO-COMERCIAL-FASE1.md) · [Integración](INTEGRACION-LICENCIAMIENTO.md) · [Actualizar instalación existente](ACTUALIZACION-FASE1.md).
+
 Etapas 1–5 (validación local) · Actualizado el 26 de septiembre de 2026.
 
 Servidor independiente en **PHP 8.3+ y MySQL 8**, con vistas PHP, Bootstrap 5 y JavaScript. El producto inicial se presenta como **AIDEX — Aplicación de Indexación Digital de Expedientes** y conserva el identificador contractual `gestor_documental`. Los cuatro logotipos SVG proporcionados se incluyen sin modificar.

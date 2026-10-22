@@ -185,3 +185,7 @@ Para el dominio final consultar [DESPLIEGUE-PRODUCCION.md](DESPLIEGUE-PRODUCCION
 `configure --output` permite guardar la configuración fuera del release; `--signing-dir` fija las privadas persistentes. No repetir configure en una actualización. `backup.php` crea/verifica archivos cifrados; `restore-empty.php` importa solo a una base vacía; `recovery-config.php` conserva las cinco claves de la copia y solicita la contraseña del destino sin eco; `recovery-check.php --against` verifica historia contra un anclaje previo externo. La guía documenta permisos, mantenimiento, timer, copia externa, rotación y recuperación de una copia atrasada.
 
 Las herramientas no configuran almacenamiento externo ni recuperación de binlogs. La copia diaria entregada no cumple por sí sola el RPO propuesto de 15 minutos. Un anclaje posterior al respaldo debe producir error hasta recuperar o conciliar la historia faltante. El indicador de mantenimiento bloquea tráfico HTTP; detener también tareas y CLI con capacidad de emisión durante una recuperación.
+
+## Actualización comercial fase 1
+
+Para el servidor existente, aplicar el procedimiento de [ACTUALIZACION-FASE1.md](ACTUALIZACION-FASE1.md). No repetir instalación inicial ni regenerar claves. La migración 006 conserva datos históricos y añade documentos/códigos cifrados; otorgar permisos sensibles explícitos a los operadores después de migrar y verificar el respaldo/restauración con el código nuevo.

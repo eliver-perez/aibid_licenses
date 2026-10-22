@@ -23,6 +23,9 @@ final class Kernel
         try {
             $this->dispatch();
         } catch (Problem $problem) {
+            if ($this->actor !== null && str_starts_with($this->path,'/admin/') && (($_SERVER['REQUEST_METHOD'] ?? '')==='POST' || $problem->status===403)) {
+                $this->app->db->transaction(fn()=> $this->app->audit->append($this->actor->id,'admin.operation_failed','admin',$this->actor->id,['path'=>$this->path,'http_status'=>$problem->status,'result'=>'rejected']));
+            }
             http_response_code($problem->status);
             if ($problem->status === 429) { header('Retry-After: 900'); }
             $this->render('error', ['title' => 'No se pudo completar la operación', 'message' => $problem->getMessage(), 'status' => $problem->status]);
@@ -38,6 +41,14 @@ final class Kernel
         $ip = $_SERVER['REMOTE_ADDR'] ?? '';
         $https = ($_SERVER['HTTPS'] ?? '') === 'on';
         if (!$https && !($this->app->config->development() && in_array($ip, ['127.0.0.1', '::1'], true))) { throw new Problem('El panel requiere una conexión HTTPS.', 403); }
+        if (str_starts_with($this->path,'/verify/')) {
+            header('Referrer-Policy: no-referrer'); header('X-Robots-Tag: noindex, nofollow');
+            if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') { header('Allow: GET'); throw new Problem('Método no permitido.',405); }
+            $this->app->rate->consume('document-verify',$ip,30,60);
+            $verification = $this->app->documents->verify(substr($this->path,8));
+            if ($verification === null) { http_response_code(404); }
+            require dirname(__DIR__,2).'/templates/verify-document.php'; return;
+        }
         if (!Network::allows($this->app->config->get('ADMIN_NETWORKS'), $ip)) { throw new Problem('El panel no está disponible desde esta red.', 403); }
         $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
         if (!in_array($method, ['GET', 'POST'], true)) { header('Allow: GET, POST'); throw new Problem('Método no permitido.', 405); }
@@ -56,7 +67,7 @@ final class Kernel
             if (($origin !== null && $origin !== rtrim($this->app->config->get('APP_URL'), '/')) || !$this->app->sessions->validCsrf($this->token, $_POST['csrf'] ?? null)) { throw new Problem('El formulario venció o no pertenece a esta sesión. Recarga la página.', 403); }
         }
         if ($this->session['stage'] === 'authenticated') {
-            $this->actor = new Actor($this->session['admin_uuid'], $this->session['role'], $this->session['display_name']);
+            $this->actor = $this->app->access->actor($this->session['admin_uuid']);
         }
         if ($this->path === '/') { $this->redirect($this->actor ? '/admin' : '/login'); return; }
         if ($this->path === '/login') {
@@ -81,6 +92,29 @@ final class Kernel
         }
         if ($this->actor === null) { $this->redirect($this->session['stage'] === 'pending' ? '/mfa' : '/login'); return; }
         $operationId = $method === 'POST' ? Input::text($_POST, 'operation_id') : '';
+        if (preg_match('~^/admin/licenses/([a-f0-9-]{36})/(administrative|reveal|documents)$~',$this->path,$matches) && $method==='POST') {
+            if ($matches[2]==='administrative') { $this->app->licenses->administrative($this->actor,$operationId,$matches[1],$_POST); $notice='administrative'; }
+            elseif ($matches[2]==='documents') {
+                $this->app->rate->consume('document-generate',$this->actor->id,10,60);
+                $this->app->documents->generate($this->actor,$operationId,$matches[1],$_POST,$this->password('password'),Input::text($_POST,'code',6,false)); $notice='document';
+            } else {
+                $secret=$this->app->materials->reveal($this->actor,$matches[1],$this->password('password'),Input::text($_POST,'code',6));
+                $this->render('issued',['title'=>'Código de activación','licenseId'=>$matches[1],'commercialKey'=>$secret]); return;
+            }
+            $this->redirect('/admin/licenses/'.$matches[1].'?notice='.$notice); return;
+        }
+        if (preg_match('~^/admin/documents/([a-f0-9-]{36})/download$~',$this->path,$matches)) {
+            $this->actor->requireRole(['superadmin','operator']);
+            $meta=$this->app->db->one('SELECT document_type,credential_id,offline_revision_id FROM license_documents WHERE id=?',[\Aibid\Domain\Uuid::bytes($matches[1])]) ?? throw new Problem('No se encontró la constancia.',404);
+            if ($meta['document_type']==='delivery') {
+                $this->actor->requirePermission('documents.delivery');
+                if ($meta['credential_id']!==null) { $this->actor->requirePermission('credentials.reveal'); }
+                if ($meta['offline_revision_id']!==null) { $this->actor->requirePermission('offline.download'); }
+                if ($method==='GET') { $this->render('material-confirm',['title'=>'Descargar constancia de entrega']); return; }
+            }
+            $document=$this->app->documents->download($this->actor,$matches[1],$this->password('password'),Input::text($_POST,'code',6,false));
+            $this->download($document['bytes'],$document['filename'],'application/pdf'); return;
+        }
         if ($this->path === '/admin' && $method === 'GET') { $this->render('dashboard', ['title' => 'Resumen', 'stats' => $this->app->read->dashboard()]); return; }
         if ($this->path === '/admin/offline' && $method === 'GET') { $this->listing('offline','Solicitudes offline'); return; }
         if ($this->path === '/admin/offline/import' && $method === 'POST') {
@@ -95,22 +129,23 @@ final class Kernel
             $this->redirect('/admin/offline/'.$result['id']); return;
         }
         if (preg_match('~^/admin/offline/([a-f0-9-]{36})(?:/(approve|reject|download))?$~',$this->path,$matches)) {
+            if (($matches[2] ?? '')==='download') {
+                $this->actor->requirePermission('offline.download');
+                $offline=$this->app->read->offline($matches[1]);
+                if ($offline['status']!=='approved') { throw new Problem('La solicitud no tiene un archivo autorizado.',409); }
+                if ($method==='GET') { $this->render('material-confirm',['title'=>'Descargar archivo offline']); return; }
+                $revision=$this->app->materials->revision($this->actor,$offline['license_text'],$offline['revision_text'],$this->password('password'),Input::text($_POST,'code',6));
+                $this->download($revision['license_jws'],'request-'.$matches[1].'.lic','text/plain; charset=utf-8'); return;
+            }
             if ($method === 'POST' && in_array($matches[2] ?? '',['approve','reject'],true)) {
                 $this->actor->requireRole(['superadmin','operator']);
-                if ($matches[2] === 'approve' && Input::text($_POST,'force_activation_id',36,false) !== '') { $this->actor->requireRole(['superadmin']); $this->confirmIdentity(); }
+                $offlineAction=$this->app->read->offline($matches[1])['payload']['action'];
+                if ($matches[2] === 'approve' && (Input::text($_POST,'force_activation_id',36,false) !== '' || $offlineAction==='deactivate')) { $this->actor->requireRole(['superadmin']); $this->confirmIdentity(); }
                 $result = $this->app->offline->decide($this->actor,$operationId,$matches[1],$matches[2] === 'approve' ? 'approved' : 'rejected',$_POST);
                 $this->redirect('/admin/offline/'.$result['id']); return;
             }
             if ($method === 'GET') {
                 $offline = $this->app->read->offline($matches[1]);
-                if (($matches[2] ?? '') === 'download') {
-                    $this->actor->requireRole(['superadmin','operator']);
-                    if ($offline['status'] !== 'approved') { throw new Problem('La solicitud todavía no tiene un archivo autorizado.',409); }
-                    $revision = $this->app->read->revision($offline['license_text'],$offline['revision_text']);
-                    header('Content-Type: text/plain; charset=utf-8');
-                    header('Content-Disposition: attachment; filename="request-'.$matches[1].'.lic"');
-                    echo $revision['license_jws']; return;
-                }
                 if (!isset($matches[2])) {
                     $selected = $offline['payload']['license_id'] ?? Input::text($_GET,'license_id',36,false);
                     $license = $selected === '' ? null : $this->app->read->license($selected);
@@ -150,19 +185,21 @@ final class Kernel
             $this->render('license-form', ['title' => 'Emitir licencia', 'customers' => $this->app->read->customers(), 'products' => $this->app->read->products(), 'capabilities' => $this->app->read->capabilities()]); return;
         }
         if ($this->path === '/admin/licenses/create' && $method === 'POST') { $this->licenseResult($this->app->licenses->issue($this->actor, $operationId, $_POST)); return; }
-        if (preg_match('~^/admin/licenses/([a-f0-9-]{36})/revisions/([a-f0-9-]{36})/download$~', $this->path, $matches) && $method === 'GET') {
-            $this->actor->requireRole(['superadmin','operator']);
-            $revision = $this->app->read->revision($matches[1], $matches[2]);
-            header('Content-Type: text/plain; charset=utf-8');
-            header('Content-Disposition: attachment; filename="license-' . $matches[1] . '-r' . (int)$revision['license_revision'] . '.lic"');
-            echo $revision['license_jws']; return;
+        if (preg_match('~^/admin/licenses/([a-f0-9-]{36})/revisions/([a-f0-9-]{36})/download$~', $this->path, $matches)) {
+            $this->actor->requirePermission('offline.download');
+            if ($method==='GET') { $this->render('material-confirm',['title'=>'Descargar archivo firmado']); return; }
+            $revision=$this->app->materials->revision($this->actor,$matches[1],$matches[2],$this->password('password'),Input::text($_POST,'code',6));
+            $this->download($revision['license_jws'],'license-'.$matches[1].'-r'.$revision['license_revision'].'.lic','text/plain; charset=utf-8'); return;
         }
         if (preg_match('~^/admin/licenses/([a-f0-9-]{36})(?:/(features|renew|maintenance|reissue|revoke))?$~', $this->path, $matches)) {
             if ($method === 'POST' && isset($matches[2])) {
                 if (in_array($matches[2], ['revoke', 'reissue'], true)) { $this->confirmIdentity(); }
                 $this->licenseResult($this->app->licenses->change($this->actor, $operationId, $matches[1], $matches[2], $_POST)); return;
             }
-            if ($method === 'GET' && !isset($matches[2])) { $this->render('license-detail', ['title' => 'Detalle de licencia', 'license' => $this->app->read->license($matches[1]), 'capabilities' => $this->app->read->capabilities()]); return; }
+            if ($method === 'GET' && !isset($matches[2])) {
+                $revisionPage=Input::text($_GET,'revision_page',8,false);
+                $this->render('license-detail', ['title' => 'Detalle de licencia', 'license' => $this->app->read->license($matches[1],ctype_digit($revisionPage)?(int)$revisionPage:1), 'capabilities' => $this->app->read->capabilities()]); return;
+            }
         }
         if ($this->path === '/admin/audit' && $method === 'GET') { $this->listing('audit', 'Auditoría'); return; }
         if ($this->path === '/admin/users' && $method === 'GET') { $this->actor->requireRole(['superadmin']); $this->render('users', ['title' => 'Administradores', 'users' => $this->app->read->users()]); return; }
@@ -225,6 +262,11 @@ final class Kernel
     }
 
     private function confirmIdentity(): void { $this->app->auth->reauthenticate($this->actor, $this->password('password'), Input::text($_POST, 'code', 6)); }
+    private function download(string $bytes, string $filename, string $type): void
+    {
+        header('Content-Type: '.$type); header('Content-Disposition: attachment; filename="'.$filename.'"');
+        header('Content-Length: '.strlen($bytes)); echo $bytes;
+    }
     private function password(string $field): string { $value = $_POST[$field] ?? ''; if (!is_string($value)) { throw new Problem('La contraseña no es válida.'); } return $value; }
     private function redirect(string $path): void { header('Location: ' . $path, true, 303); }
     private function cookieName(): string { return $this->app->config->development() ? 'aibid_admin_dev' : '__Host-license_admin'; }

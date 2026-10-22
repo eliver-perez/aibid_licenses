@@ -73,7 +73,7 @@ final class AdministrationTest extends TestCase
         $license=$app->read->license($result['id']);
         self::assertNull($license['expires_at']); self::assertNull($license['maintenance_until']);
         self::assertSame(0,(int)$license['grace_days']); self::assertSame(0,(int)$license['revision_counter']);
-        self::assertMatchesRegularExpression('/\AAIDEX-[A-Za-z0-9_-]{43}\z/',$result['secret']);
+        self::assertMatchesRegularExpression('/\A[2-9A-HJKMNP-Z]{3}(?:-[2-9A-HJKMNP-Z]{4}){3}\z/',$result['secret']);
         self::assertSame('TEST-001', json_decode($license['history'][0]['snapshot_json'], true, 512, JSON_THROW_ON_ERROR)['commercial_reference']);
         $stored=$app->db->one('SELECT * FROM license_credentials WHERE license_id=?',[Uuid::bytes($result['id'])]);
         self::assertSame($app->crypto->digest('CREDENTIAL_KEY',$result['secret']),$stored['key_digest']);
@@ -256,9 +256,12 @@ final class AdministrationTest extends TestCase
         foreach(['license_transfers','offline_decisions','offline_requests'] as $table)$owner->execute('DROP TABLE '.$table);
         $owner->execute("DELETE FROM schema_migrations WHERE name='004_offline_requests.sql'");
         $owner->execute('ALTER TABLE activations DROP FOREIGN KEY fk_current_revision');
+        // Remove only this empty fixture's new dependent FK while reconstructing older tables.
+        $owner->execute('ALTER TABLE license_documents DROP FOREIGN KEY license_documents_ibfk_4');
         foreach(['license_revisions','activations','signing_scopes','signing_keys','activation_challenges','license_requests'] as $table)$owner->execute('DROP TABLE '.$table);
         $owner->execute('DELETE FROM schema_migrations WHERE name=\'003_online_activations.sql\'');
         self::assertSame(['003_online_activations.sql','004_offline_requests.sql'],(new Migrator($owner,dirname(__DIR__,2).'/database/migrations'))->migrate());
+        $owner->execute('ALTER TABLE license_documents ADD CONSTRAINT license_documents_ibfk_4 FOREIGN KEY (offline_revision_id) REFERENCES license_revisions(revision_id)');
         $license=$this->fixture->app->read->license($issued['id']);
         self::assertSame('perpetual',$license['license_type']);self::assertNull($license['maintenance_until']);
         self::assertSame(1,(int)$license['row_version']);self::assertSame([],$license['activations']);

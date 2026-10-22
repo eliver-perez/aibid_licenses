@@ -20,6 +20,8 @@ consoleRun(function (): void {
         'license_revisions'=>'SELECT,INSERT', 'activation_challenges'=>'SELECT,INSERT,UPDATE,DELETE',
         'license_requests'=>'SELECT,INSERT,UPDATE',
         'offline_requests'=>'SELECT,INSERT', 'offline_decisions'=>'SELECT,INSERT', 'license_transfers'=>'SELECT,INSERT',
+        'admin_permission_grants'=>'SELECT,INSERT,DELETE', 'license_administrative_changes'=>'SELECT,INSERT',
+        'license_documents'=>'SELECT,INSERT',
     ];
     foreach ($permissions as $table => $privileges) { fwrite(STDOUT, "GRANT $privileges ON `$database`.`$table` TO '$user'@'localhost';\n"); }
 });

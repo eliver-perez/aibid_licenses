@@ -30,6 +30,8 @@ final class BackupTest extends TestCase
             $app->db->execute('UPDATE admin_users SET mfa_secret_encrypted=? WHERE id=?',[$app->crypto->encrypt($mfa,'mfa:'.$actor->id),Uuid::bytes($actor->id)]);
             $customer = $app->catalog->saveCustomer($actor,Uuid::create(),null,['name'=>'Recovery fixture','contact_name'=>'Test','email'=>'backup@example.test','state'=>'active']);
             $license = $app->licenses->issue($actor,Uuid::create(),['customer_id'=>$customer['id'],'product_id'=>'gestor_documental','license_type'=>'perpetual','entitled_release_until'=>'2026-09-26T12:00','features'=>['expedientes'],'reason'=>'Recovery fixture']);
+            $document = $app->documents->generate($actor,Uuid::create(),$license['id'],['document_type'=>'licensing']);
+            $documentPdf = $app->documents->download($actor,$document['document_id'])['bytes'];
             $pair = sodium_crypto_sign_keypair();
             $payload = ['action'=>'activate','request_id'=>Uuid::create(),'created_at'=>'2026-09-26T12:00:00Z','product_id'=>'gestor_documental','installation_id'=>Uuid::create(),'installation_public_key'=>Protocol::encode(sodium_crypto_sign_publickey($pair)),'fingerprint_version'=>'1','fingerprint_hash'=>'sha256:'.str_repeat('d',64),'license_key'=>$license['secret']];
             $envelope = static function (array $input) use ($pair): string {
@@ -81,6 +83,7 @@ final class BackupTest extends TestCase
             self::assertSame('approved',$restored->read->offline($offline['id'])['status']);
             self::assertSame($mfa,$restored->crypto->decrypt($restored->db->execute('SELECT mfa_secret_encrypted FROM admin_users')->fetchColumn(),'mfa:'.$actor->id));
             self::assertSame($restored->crypto->digest('CREDENTIAL_KEY',$license['secret']),$restored->db->execute('SELECT key_digest FROM license_credentials')->fetchColumn());
+            self::assertSame($documentPdf,$restored->documents->download($actor,$document['document_id'])['bytes']);
             $evidence = $restored->db->execute('SELECT evidence_encrypted FROM offline_requests WHERE id=?',[Uuid::bytes($offline['id'])])->fetchColumn();
             self::assertSame($original,$restored->crypto->decryptEvidence($evidence,'offline:v1:'.$offline['id']));
             self::assertSame($offline['id'],$restored->offline->import($actor,Uuid::create(),$original)['id']);

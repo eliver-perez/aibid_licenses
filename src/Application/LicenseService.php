@@ -2,7 +2,7 @@
 declare(strict_types=1);
 namespace Aibid\Application;
 
-use Aibid\Domain\{Capabilities, Input, Problem, Uuid};
+use Aibid\Domain\{ActivationCode, Capabilities, Input, Problem, Uuid};
 use Aibid\Infrastructure\{Audit, Clock, Crypto, Database};
 
 final class LicenseService
@@ -16,7 +16,7 @@ final class LicenseService
         $type = Input::choice($input, 'license_type', ['perpetual', 'subscription']);
         $date = Input::date(Input::text($input, $type === 'perpetual' ? 'entitled_release_until' : 'expires_at'));
         $features = $this->featureInput($input);
-        $reason = Input::text($input, 'reason', 500);
+        $reason = Input::text($input, 'reason', 500, false);
         $reference = Input::text($input, 'reference', 190, false);
         if ($type === 'subscription' && $date <= $this->clock->now()) { throw new Problem('El vencimiento debe ser posterior al momento actual.'); }
         $data = [$customerId, $productId, $type, $date->format(DATE_ATOM), $features, $reason, $reference];
@@ -29,12 +29,13 @@ final class LicenseService
             $bytes = Uuid::bytes($id);
             $instant = $date->format('Y-m-d H:i:s.u');
             $this->db->execute('INSERT INTO licenses(license_id,customer_id,product_id,license_type,expires_at,grace_days,maintenance_until,entitled_release_until,created_at,updated_at) VALUES (?,?,?,?,?,?,NULL,?,?,?)', [$bytes, Uuid::bytes($customerId), $productId, $type, $type === 'subscription' ? $instant : null, $type === 'subscription' ? 15 : 0, $instant, $this->clock->sql(), $this->clock->sql()]);
+            $this->db->execute('UPDATE licenses SET commercial_reference=?,authorization_note=? WHERE license_id=?', [$reference,$reason,$bytes]);
             $this->db->execute('INSERT INTO license_limits(license_id,max_installations,max_users,max_libraries,max_documents) VALUES (?,1,NULL,NULL,NULL)', [$bytes]);
             $this->writeFeatures($bytes, $productId, $catalog, $features);
             if ($type === 'subscription') { $this->period($actor, $bytes, null, $instant, $reference, $reason); }
             $secret = $this->credential($bytes);
             $this->record($actor, $id, 'license.issued', $reason, $reference);
-            return ['id' => $id, 'secret' => $secret];
+            return $this->credentialResult($actor, $id, $secret);
         });
     }
 
@@ -74,7 +75,7 @@ final class LicenseService
                 $this->db->execute('UPDATE licenses SET maintenance_until=?,entitled_release_until=? WHERE license_id=?', [$instant, $instant, $bytes]);
             } elseif ($action === 'reissue') {
                 $this->db->execute("UPDATE license_credentials SET state='retired',retired_at=? WHERE license_id=? AND state='active'", [$this->clock->sql(), $bytes]);
-                $result['secret'] = $this->credential($bytes);
+                $result = $this->credentialResult($actor, $id, $this->credential($bytes));
             } elseif ($action === 'revoke') {
                 $this->db->execute("UPDATE licenses SET commercial_status='revoked' WHERE license_id=?", [$bytes]);
                 $this->db->execute("UPDATE license_credentials SET state='retired',retired_at=? WHERE license_id=? AND state='active'", [$this->clock->sql(), $bytes]);
@@ -131,9 +132,49 @@ final class LicenseService
 
     private function credential(string $licenseId): string
     {
-        $key = 'AIDEX-' . Crypto::token();
-        $this->db->execute("INSERT INTO license_credentials(credential_id,license_id,key_digest,digest_key_version,state,created_at) VALUES (?,?,?,1,'active',?)", [Uuid::bytes(Uuid::create()), $licenseId, $this->crypto->digest('CREDENTIAL_KEY', $key), $this->clock->sql()]);
-        return $key;
+        for ($attempt = 0; $attempt < 8; ++$attempt) {
+            $key = ActivationCode::generate();
+            $id = Uuid::create();
+            $digest = $this->crypto->digest('CREDENTIAL_KEY', $key);
+            if ($this->db->one('SELECT credential_id FROM license_credentials WHERE key_digest=? AND digest_key_version=1', [$digest])) { continue; }
+            try {
+                $encrypted = $this->crypto->seal($key, 'credential:'.$id, 'activation-code');
+                $this->db->execute("INSERT INTO license_credentials(credential_id,license_id,key_digest,digest_key_version,state,created_at,credential_encrypted,code_format) VALUES (?,?,?,1,'active',?,?,'3-4-4-4')", [Uuid::bytes($id),$licenseId,$digest,$this->clock->sql(),$encrypted]);
+                return $key;
+            } catch (\PDOException $error) {
+                if ((int)($error->errorInfo[1] ?? 0) !== 1062 || !$this->db->one('SELECT credential_id FROM license_credentials WHERE key_digest=? AND digest_key_version=1', [$digest])) { throw $error; }
+            }
+        }
+        throw new \RuntimeException('Activation code collision retry exhausted.');
+    }
+
+    private function credentialResult(Actor $actor, string $id, string $secret): array
+    {
+        if (!(new Access($this->db))->actor($actor->id)->allows('credentials.reveal')) { return ['id'=>$id]; }
+        $this->audit->append($actor->id, 'credential.disclosed_on_issue', 'license', $id);
+        return ['id'=>$id, 'secret'=>$secret];
+    }
+
+    public function administrative(Actor $actor, string $operationId, string $id, array $input): array
+    {
+        $reference = Input::text($input, 'reference', 190, false);
+        $note = Input::text($input, 'reason', 500, false);
+        $version = (int)($input['administrative_version'] ?? 0);
+        return $this->operations->run($actor, ['superadmin','operator'], $operationId, 'license.administrative', [$id,$reference,$note,$version], function () use ($actor,$id,$reference,$note,$version): array {
+            $license = $this->db->one('SELECT * FROM licenses WHERE license_id=? FOR UPDATE', [Uuid::bytes($id)]) ?? throw new Problem('No se encontró la licencia.',404);
+            if ((int)$license['administrative_version'] !== $version) { throw new Problem('Otro operador actualizó la información administrativa. Recarga el detalle.',409); }
+            $changes = [];
+            foreach (['commercial_reference'=>$reference,'authorization_note'=>$note] as $field=>$value) {
+                if ($license[$field] === $value) { continue; }
+                $changes[$field] = ['before'=>$license[$field],'after'=>$value];
+                $this->db->execute('INSERT INTO license_administrative_changes(id,license_id,version,field_name,old_value,new_value,admin_id,created_at) VALUES (?,?,?,?,?,?,?,?)', [Uuid::bytes(Uuid::create()),$license['license_id'],$version+1,$field,$license[$field],$value,Uuid::bytes($actor->id),$this->clock->sql()]);
+            }
+            if ($changes) {
+                $this->db->execute('UPDATE licenses SET commercial_reference=?,authorization_note=?,administrative_version=administrative_version+1 WHERE license_id=?', [$reference,$note,$license['license_id']]);
+                $this->audit->append($actor->id,'license.administrative_updated','license',$id,['changes'=>$changes,'version'=>$version+1]);
+            }
+            return ['id'=>$id];
+        });
     }
 
     private function period(Actor $actor, string $licenseId, ?string $previous, string $until, string $reference, string $reason): void

@@ -132,3 +132,13 @@ El archivo incluye datos SQL y secretos necesarios para recuperar licencias perp
 El respaldo coordina metadatos de firma y cabecera de auditoría con un dump InnoDB consistente; las migraciones/DDL no deben coincidir. La recuperación SQL exige una base vacía explícita y no borra datos existentes. El verificador detecta JWS alterados, contadores/punteros incongruentes y evidencia inválida, y compara secuencia/hash con el anclaje externo suministrado. El anclaje debe provenir de una copia anterior protegida independientemente; la cadena local sola no detecta restauración conjunta a un pasado válido.
 
 Ni restaurar ni verificar quita mantenimiento o reanuda firmas. No publicar una copia atrasada sin reconciliar operaciones posteriores. La tarea systemd de ejemplo crea copias/anclajes locales, no almacenamiento externo ni binlogs. Procedimiento en [la guía del VPS](DEPLOY_UBUNTU_24_04.md).
+
+## Fase comercial 1: credenciales, documentos y permisos
+
+Las credenciales nuevas usan 15 símbolos aleatorios de un alfabeto de 31 caracteres (74.31 bits), sin prefijo ni checksum que reduzca entropía. Los códigos nuevos y PDF/snapshots se protegen con XChaCha20-Poly1305, HKDF-SHA256 desde CREDENTIAL_KEY, contextos por registro y propósitos distintos; HMAC sigue permitiendo la búsqueda. No regenerar esa raíz al actualizar.
+
+Operador requiere grants adicionales para credentials.reveal, documents.delivery y offline.download; superadmin conserva todos. Revelación, entrega sensible y descarga .lic requieren contraseña/TOTP nuevo, permiso revalidado y auditoría. Una entrega online también exige credentials.reveal; una offline exige offline.download, incluso para históricos. La referencia y nota administrativas son opcionales, con historial separado del JWS.
+
+Verificación pública usa referencia aleatoria de 256 bits, rate limit, sin sesión ni datos personales/códigos/instalación y con SHA-256 del PDF para detectar QR copiados a documentos alterados. No sustituye Ed25519 de los .lic ni acredita una activación vigente. El PDF no incorpora firma PAdES. Dompdf 3.1.6 se configura sin contenido remoto, ejecución PHP/JavaScript ni HTML/SVG suministrado por el usuario.
+
+La liberación de una instalación offline requiere superadmin, reautenticación, motivo y reconocimiento explícito de que una solicitud firmada demuestra posesión, no borrado de clones. Protección de privada/contadores/retiros en los sistemas operativos corresponde al consumidor. No se fuerza conectividad en perpetuas offline.

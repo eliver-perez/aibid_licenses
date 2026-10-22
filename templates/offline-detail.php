@@ -24,7 +24,7 @@ $needsTransfer = $payload['action'] === 'activate' && $active !== null;
 </section>
 <?php if ($offline['status'] !== 'pending'): ?>
 <section class="panel form-panel mt-4"><h2>Decisión registrada</h2><p><?= V::escape($offline['reason']) ?></p><p class="text-secondary"><?= V::escape($offline['decider_name']) ?> · <?= V::escape(V::date($offline['decided_at'])) ?></p>
-    <?php if ($offline['status'] === 'approved'): ?><p><a class="text-link" href="/admin/licenses/<?= V::escape($offline['license_text']) ?>">Consultar licencia e historial vigente</a></p><?php if ($actor->canWrite()): ?><a class="btn btn-primary" href="<?= V::escape($requestPath) ?>/download">Descargar .lic</a><?php endif; ?><p class="small text-secondary mt-3 mb-0">La descarga conserva la revisión autorizada en esta decisión. Entrega el archivo únicamente a su instalación y comprueba si existen revisiones posteriores.</p><?php endif; ?>
+    <?php if ($offline['status'] === 'approved'): ?><p><a class="text-link" href="/admin/licenses/<?= V::escape($offline['license_text']) ?>">Consultar licencia e historial vigente</a></p><?php if ($actor->allows('offline.download')): ?><a class="btn btn-primary" href="<?= V::escape($requestPath) ?>/download">Descargar .lic</a><?php endif; ?><p class="small text-secondary mt-3 mb-0">La descarga conserva la revisión autorizada en esta decisión. Entrega el archivo únicamente a su instalación y comprueba si existen revisiones posteriores.</p><?php endif; ?>
 </section>
 <?php endif; ?>
 </div><div class="col-xl-5">
@@ -49,7 +49,7 @@ $needsTransfer = $payload['action'] === 'activate' && $active !== null;
         <label>Referencia comercial <span class="optional">obligatoria al ampliar</span><input class="form-control mt-2" name="reference" maxlength="190"></label>
     <?php else: ?><input type="hidden" name="renewal_mode" value="current"><?php endif; ?>
     <?php if ($payload['action']==='renew' && $license['license_type']==='perpetual'): ?><p class="small text-secondary">Se emitirá una nueva revisión con los derechos actuales. Registra cualquier compra de mantenimiento por separado en la licencia.</p><?php endif; ?>
-    <?php if ($payload['action']==='deactivate'): ?><p class="small text-secondary">El archivo marcará esta activación como revocada y liberará su plaza. La licencia comercial seguirá emitida para otro equipo.</p><?php endif; ?>
+    <?php if ($payload['action']==='deactivate'): ?><p class="small text-secondary">La firma acredita posesión de la clave, pero no prueba que se hayan borrado copias del estado anterior. La liberación requiere autorización excepcional del superadministrador.</p><?php require __DIR__.'/offline-confirm.php'; ?><?php endif; ?>
     <?php if ($needsTransfer): ?>
         <div class="note-box">La licencia ya tiene una instalación activa. Esta recuperación por equipo averiado retirará <?= V::escape($active['installation_text']) ?> y activará el destino en una sola operación.</div>
         <label class="form-check"><input class="form-check-input" type="checkbox" name="force_activation_id" value="<?= V::escape($active['id_text']) ?>" required> Autorizo retirar la instalación de origen.</label>

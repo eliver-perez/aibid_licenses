@@ -40,6 +40,18 @@ const future = days => new Date(Date.now() + days * 86400000).toISOString().slic
     async function submit(button) {
         await Promise.all([page.waitForNavigation({ waitUntil: 'load' }), button.click()]);
     }
+    let lastReauthStep = Math.floor(Date.now() / 30000);
+    async function freshCode(secret) {
+        while (Math.floor(Date.now() / 30000) + 1 <= lastReauthStep) await new Promise(resolve => setTimeout(resolve, 300));
+        lastReauthStep = Math.floor(Date.now() / 30000) + 1;
+        return totp(secret, 1);
+    }
+    async function sensitiveDownload(url, secret) {
+        const confirm = await context.request.get(url);
+        assert.equal(confirm.status(), 200);
+        const csrf = (await confirm.text()).match(/name="csrf" value="([^"]+)"/)[1];
+        return context.request.post(url, { form: { csrf, operation_id: crypto.randomUUID(), password: 'Fixture-Password-Only-2026!', code: await freshCode(secret) } });
+    }
     async function screenshot(name) {
         await page.screenshot({ path: path.join(screenshotDir, name + '.png'), fullPage: true, animations: 'disabled' });
     }
@@ -65,7 +77,7 @@ const future = days => new Date(Date.now() + days * 86400000).toISOString().slic
         await page.locator('tbody tr').filter({ hasText: 'Centro Documental del Norte' }).getByRole('link', { name: 'Detalle' }).click();
         await page.waitForURL(/\/admin\/licenses\/[a-f0-9-]{36}$/);
         const signedDownload = await page.getByRole('link', { name: 'Descargar .lic' }).getAttribute('href');
-        const signedFile = await context.request.get(signedDownload);
+        const signedFile = await sensitiveDownload(signedDownload, secret);
         assert.equal(signedFile.status(), 200);
         assert.match(signedFile.headers()['content-disposition'], /^attachment; filename="license-/);
         const compact = await signedFile.text();
@@ -91,12 +103,11 @@ const future = days => new Date(Date.now() + days * 86400000).toISOString().slic
         await page.locator('[value="review_workflow"]').check();
         assert.equal(await page.locator('[value="expedientes"]').isChecked(), true);
         assert.equal(await page.locator('[value="managed_libraries"]').isChecked(), false);
-        await page.locator('#reference').fill('BROWSER-001');
-        await page.locator('#reason').fill('Emisión de prueba en navegador');
+        assert.equal(await page.locator('#reason').getAttribute('required'), null);
         await screenshot('license-form-desktop');
         await submit(page.getByRole('button', { name: 'Emitir y mostrar clave' }));
         const commercialKey = await page.locator('#commercial-key').inputValue();
-        assert.match(commercialKey, /^AIDEX-[A-Za-z0-9_-]{43}$/);
+        assert.match(commercialKey, /^[2-9A-HJKMNP-Z]{3}(?:-[2-9A-HJKMNP-Z]{4}){3}$/);
         await page.getByRole('link', { name: 'Ya la guardé · Ver licencia' }).click();
         await page.waitForURL(/\/admin\/licenses\/[a-f0-9-]{36}$/);
         const licenseURL = page.url();
@@ -111,6 +122,16 @@ const future = days => new Date(Date.now() + days * 86400000).toISOString().slic
         assert.match(await page.locator('main').innerText(), /Sin vencimiento/);
         assert.equal((await page.locator('main').innerText()).includes('No contratado'), false);
         await screenshot('license-detail-desktop');
+        const metadata = page.locator('form[action$="/administrative"]');
+        await metadata.locator('[name="reference"]').fill('Contrato sintético BROWSER-084');
+        await submit(metadata.getByRole('button'));
+        assert.match(await page.locator('[role="status"]').innerText(), /administrativa actualizada/);
+        await submit(page.getByRole('button', { name: 'Generar constancia de licenciamiento', exact: true }));
+        const pdfUrl = await page.getByRole('link', { name: 'Descargar PDF r1', exact: true }).getAttribute('href');
+        const pdfResponse = await context.request.get(pdfUrl);
+        assert.equal(pdfResponse.status(), 200);
+        assert.match(pdfResponse.headers()['content-type'], /application\/pdf/);
+        assert.equal((await pdfResponse.body()).subarray(0, 5).toString(), '%PDF-');
 
         const csrf = await page.locator('[name="csrf"]').first().inputValue();
         let response = await context.request.post('/admin/customers/create', { form: { csrf: 'invalid', operation_id: crypto.randomUUID() }, maxRedirects: 0 });
@@ -135,7 +156,7 @@ const future = days => new Date(Date.now() + days * 86400000).toISOString().slic
         await page.locator('#term_reason').fill('Renovación de prueba');
         await submit(page.getByRole('button', { name: 'Confirmar renovación' }));
         assert.equal(await page.locator('tbody tr').count(), 2);
-        const offlineDownload = await require('./offline-panel.cjs')({ page, context, secret, totp, licenseURL, subscriptionURL: page.url(), commercialKey, screenshot });
+        const offlineDownload = await require('./offline-panel.cjs')({ page, context, secret, totp, freshCode, sensitiveDownload, licenseURL, subscriptionURL: page.url(), commercialKey, screenshot });
 
         for (const route of ['/admin/customers', '/admin/products', '/admin/products/gestor_documental', '/admin/licenses', '/admin/offline', '/admin/audit', '/admin/users', '/admin/security']) {
             const result = await page.goto(route);

@@ -47,7 +47,7 @@ Los campos siguientes son los esenciales del diseño; las migraciones agregarán
 
 Los desafíos no tienen FK obligatoria a activaciones: se pueden crear para identidades desconocidas sin revelar si existen; la autenticación se resuelve en el endpoint final. Producto desconocido recibe tratamiento genérico. La solicitud offline almacena únicamente identidad de licencia y operación, nunca archivos documentales del gestor.
 
-Los originales `.licreq` se archivan con cifrado autenticado y clave de evidencia separada, preservando sus bytes para verificar sin guardar en claro campos opcionales sensibles. No duplicar `payload_b64u` en columnas abiertas: codificar no cifra. Las proyecciones para consulta incluyen solo los campos de identidad autorizados. El hash/HMAC de la credencial comercial sigue siendo su única representación en el modelo de credenciales.
+Los originales `.licreq` se archivan con cifrado autenticado y clave de evidencia separada, preservando sus bytes para verificar sin guardar en claro campos opcionales sensibles. No duplicar `payload_b64u` en columnas abiertas: codificar no cifra. Las proyecciones para consulta incluyen solo los campos de identidad autorizados. Las credenciales nuevas conservan HMAC para búsqueda y cifrado autenticado para recuperación controlada; las antiguas permanecen solo con su digest y no se intentan recuperar.
 
 ## 3. Relaciones principales
 
@@ -210,3 +210,7 @@ Para aprobar se bloquean actor → operación administrativa → request → pro
 ## 13. Transición de identidad AIDEX
 
 `005_aidex_identity.sql` actualiza únicamente los textos originales del producto `gestor_documental` a AIDEX — Aplicación de Indexación Digital de Expedientes. No cambia el esquema ni capacidades, licencias o revisiones; conserva personalizaciones y los checksums 001–004.
+
+## 14. Fase comercial 1 — Migración 006
+
+`006_commercial_delivery.sql` añade columnas de cifrado/formato de credencial, referencia/nota/version administrativa, RFC opcional y tablas `admin_permission_grants`, `license_administrative_changes` y `license_documents`. Los documentos y snapshots se cifran y los PDF son inmutables con SHA-256. No cambia 001–005 ni el esquema firmado. Ver [actualización controlada](ACTUALIZACION-FASE1.md).

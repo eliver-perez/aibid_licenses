@@ -39,6 +39,7 @@ final class View
     public static function action(string $action): string
     {
         return [
+            'license.administrative_updated'=>'Información administrativa actualizada', 'credential.revealed'=>'Código consultado', 'document.generated'=>'Constancia generada', 'document.downloaded'=>'Constancia descargada', 'offline.downloaded'=>'Archivo firmado descargado',
             'license.issued' => 'Licencia emitida', 'license.features' => 'Módulos actualizados',
             'license.renew' => 'Suscripción renovada', 'license.maintenance' => 'Mantenimiento registrado',
             'license.reissue' => 'Clave comercial reemplazada', 'license.revoke' => 'Licencia revocada',

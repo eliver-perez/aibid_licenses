@@ -60,7 +60,7 @@ Servicios principales: `IssueLicense`, `ChangeLicenseEntitlements`, `RenewSubscr
 | Solicitud | Idempotencia y resultado de una operación online u offline |
 | Auditoría | Quién autorizó el cambio, motivo y referencias a sus resultados |
 
-Una licencia recién emitida puede no tener activación; aún no es posible generar su payload V1, que exige identidad y `activation_id`. Se guarda el derecho comercial y se muestra la clave una sola vez. Al activarse, se emite la primera revisión firmada. Los cambios comerciales sin activación se auditan y se incorporan al siguiente JWS; no se inventa una identidad de instalación para firmarlos.
+Una licencia recién emitida puede no tener activación; aún no es posible generar su payload V1, que exige identidad y `activation_id`. Se guarda el derecho comercial y el código nuevo se cifra para recuperación autorizada, además de guardar su digest; su revelación requiere permiso y reautenticación fuera de la presentación inicial autorizada. Al activarse, se emite la primera revisión firmada. Los cambios comerciales sin activación se auditan y se incorporan al siguiente JWS; no se inventa una identidad de instalación para firmarlos.
 
 Cada emisión de un nuevo JWS toma el siguiente contador global de su licencia bajo bloqueo. El cliente compara revisiones dentro de cada `activation_id`. Se permiten saltos y nunca se reutiliza un número. `refresh` sin cambios devuelve el JWS vigente sin elevar el contador; una renovación, cambio de módulos, mantenimiento o revocación genera una revisión nueva. Un reintento idempotente devuelve los mismos bytes de la respuesta original.
 

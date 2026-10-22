@@ -2,7 +2,7 @@
 const crypto = require('node:crypto');
 const assert = require('node:assert/strict');
 
-module.exports = async function offlinePanel({ page, context, secret, totp, licenseURL, subscriptionURL, commercialKey, screenshot }) {
+module.exports = async function offlinePanel({ page, context, secret, totp, freshCode, sensitiveDownload, licenseURL, subscriptionURL, commercialKey, screenshot }) {
     const licenseId = new URL(licenseURL).pathname.split('/').pop();
     const subscriptionId = new URL(subscriptionURL).pathname.split('/').pop();
     const device = () => {
@@ -29,16 +29,22 @@ module.exports = async function offlinePanel({ page, context, secret, totp, lice
         await submit(page.getByRole('button', { name: 'Revisar derechos' }));
     }
     async function approve() {
+        const form = page.locator('form[action$="/approve"]');
+        if (await form.locator('[name="accept_offline_limit"]').count()) {
+            await form.locator('[name="accept_offline_limit"]').check();
+            await form.locator('[name="password"]').fill('Fixture-Password-Only-2026!');
+            await form.locator('[name="code"]').fill(await freshCode(secret));
+        }
         await page.locator('form[action$="/approve"] [name="reason"]').fill('Autorización comercial de prueba offline');
         await submit(page.getByRole('button', { name: /Aprobar y generar|Confirmar transferencia/ }));
         assert.equal(await page.getByRole('link', { name: 'Descargar .lic', exact: true }).count(), 1);
         const url = await page.getByRole('link', { name: 'Descargar .lic', exact: true }).getAttribute('href');
-        const response = await context.request.get(url);
+        const response = await sensitiveDownload(url, secret);
         assert.equal(response.status(), 200);
         assert.match(response.headers()['content-type'], /^text\/plain/);
         const jws = await response.text();
         assert.match(jws, /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]{86}$/);
-        assert.equal(await (await context.request.get(url)).text(), jws);
+
         return { url, jws, payload: JSON.parse(Buffer.from(jws.split('.')[1], 'base64url').toString('utf8')) };
     }
     const oldDevice = device();
@@ -77,7 +83,6 @@ module.exports = async function offlinePanel({ page, context, secret, totp, lice
     response = await context.request.post(await transferForm.getAttribute('action'), { form: { ...values, reason: 'Rejected password test', password: 'Incorrect-Password', code: totp(secret, 1) }, maxRedirects: 0 });
     assert.equal(response.status(), 401);
     await transferForm.locator('[name="password"]').fill('Fixture-Password-Only-2026!');
-    await transferForm.locator('[name="code"]').fill(totp(secret, 1));
     const transferred = await approve();
     assert.equal(transferred.payload.license_revision, 3);
     assert.notEqual(transferred.payload.activation_id, activated.payload.activation_id);

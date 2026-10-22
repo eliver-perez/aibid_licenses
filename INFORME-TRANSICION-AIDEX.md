@@ -1,3 +1,5 @@
+> Informe histórico del 9 de octubre. La fase comercial del 21 de octubre sustituye el prefijo de 43 caracteres y amplía funciones: consultar [LICENCIAMIENTO-COMERCIAL-FASE1.md](LICENCIAMIENTO-COMERCIAL-FASE1.md). Las pruebas y afirmaciones de este documento pertenecen a la transición de identidad, no a la fase actual.
+
 # Informe de transición AIDEX y preparación de producción
 
 Fecha: 9 de octubre de 2026. Alcance: exclusivamente el servidor PHP de licencias. Identidad: **AIDEX — Aplicación de Indexación Digital de Expedientes**, primera versión comercial **1.0**. Destino previsto: **https://licensing.aidex.com.mx**.

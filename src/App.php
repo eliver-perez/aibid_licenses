@@ -2,7 +2,7 @@
 declare(strict_types=1);
 namespace Aibid;
 
-use Aibid\Application\{ActivationService, AdminService, AuthService, CatalogService, LicenseService, OfflineService, Operations, RevisionPublisher};
+use Aibid\Application\{Access, ActivationService, AdminService, AuthService, CatalogService, DocumentService, LicenseMaterials, LicenseService, OfflineService, Operations, RevisionPublisher};
 use Aibid\Infrastructure\{Audit, Clock, Crypto, Database, RateLimiter, ReadRepository, Sessions, SigningKeys, Totp};
 
 final class App
@@ -22,6 +22,9 @@ final class App
     public readonly ActivationService $activations;
     public readonly RateLimiter $rate;
     public readonly OfflineService $offline;
+    public readonly Access $access;
+    public readonly LicenseMaterials $materials;
+    public readonly DocumentService $documents;
 
     public function __construct(public readonly Config $config, public readonly Database $db, ?Clock $clock = null)
     {
@@ -42,6 +45,9 @@ final class App
         $this->offline = new OfflineService($db, $operations, $this->audit, $this->clock, $this->crypto, $this->publisher, $this->licenses);
         $this->admins = new AdminService($db, $operations, $this->auth, $this->audit, $this->clock);
         $this->read = new ReadRepository($db, $this->clock);
+        $this->access = new Access($db);
+        $this->materials = new LicenseMaterials($db,$this->crypto,$this->audit,$this->access,$this->auth);
+        $this->documents = new DocumentService($db,$config,$this->clock,$this->crypto,$this->audit,$operations,$this->access,$this->materials,new \Aibid\Infrastructure\CertificatePdf());
     }
 
     public static function boot(): self

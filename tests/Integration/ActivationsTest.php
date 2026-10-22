@@ -62,6 +62,29 @@ final class ActivationsTest extends TestCase
     }
     private function activate(): array { return $this->payload($this->app->activations->execute('activate',$this->request())); }
 
+    public function testNewCodeNormalizesCaseAndSeparatorsWithoutChangingIdempotentResponse(): void
+    {
+        $input=$this->request();
+        $input['license_key']=strtolower(str_replace('-','',$this->issued['secret']));
+        $response=$this->app->activations->execute('activate',$input);
+        $this->payload($response);
+        $input['license_key']=$this->issued['secret'];
+        self::assertSame($response->body,$this->app->activations->execute('activate',$input)->body);
+        self::assertSame(1,(int)$this->app->db->execute('SELECT COUNT(*) FROM activations')->fetchColumn());
+    }
+
+    public function testOldAndMalformedCodesCannotActivateAndCredentialAttemptsAreLimited(): void
+    {
+        foreach (['AIDEX-'.str_repeat('A',43),'K7I-9R3X-6TVP-8CHD'] as $code) {
+            $input=$this->request();$input['license_key']=$code;
+            self::assertSame(404,$this->app->activations->execute('activate',$input)->status);
+        }
+        self::assertSame(0,(int)$this->app->db->execute('SELECT COUNT(*) FROM activations')->fetchColumn());
+        for ($i=0;$i<10;++$i) { $response=$this->app->activations->execute('activate',$this->request());self::assertContains($response->status,[200,409]); }
+        try { $this->app->activations->execute('activate',$this->request());self::fail('Credential throttle bypassed'); }
+        catch (\Aibid\Domain\Problem $e) { self::assertSame(429,$e->status); }
+    }
+
     public function testActivationHasExactRightsAndRefreshReusesSignedBytes(): void
     {
         $response=$this->app->activations->execute('activate',$this->request());$payload=$this->payload($response);

@@ -54,7 +54,7 @@ final class RealClientTest extends TestCase
         $app = $this->stack->app;
         $imported = $app->offline->import($this->actor,Uuid::create(),$request['contents']);
         $license = $app->read->license($licenseId);
-        $result = $app->offline->decide($this->actor,Uuid::create(),$imported['id'],'approved',$input+['license_id'=>$licenseId,'version'=>$license['row_version'],'renewal_mode'=>'current','reason'=>'Client-generated offline request']);
+        $result = $app->offline->decide($this->actor,Uuid::create(),$imported['id'],'approved',$input+['license_id'=>$licenseId,'version'=>$license['row_version'],'renewal_mode'=>'current','reason'=>'Client-generated offline request','accept_offline_limit'=>'1']);
         $jws = $app->read->revision($result['license_id'],$result['revision_id'])['license_jws'];
         $response = $this->client($installation,'import',['contents'=>$jws]);
         self::assertArrayNotHasKey('error',$response);

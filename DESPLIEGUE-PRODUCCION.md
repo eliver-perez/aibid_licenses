@@ -2,7 +2,7 @@
 
 Identidad: **AIDEX — Aplicación de Indexación Digital de Expedientes**. Producto: `aidex.com.mx`. Origen del servidor: **https://licensing.aidex.com.mx**. Actualizado el 9 de octubre de 2026.
 
-Las claves comerciales nuevas y sus reemplazos usan el prefijo `AIDEX-`. No se requiere migrar claves comerciales anteriores: el usuario confirmó que todavía no se han otorgado licencias válidas. Este cambio no modifica el protocolo, los tokens aleatorios, firmas ni secretos existentes.
+Las claves comerciales nuevas y sus reemplazos usan el formato **3-4-4-4 sin prefijo**, por ejemplo ficticio `K7M-9R3X-6TVP-8CHD`. Para actualizar el servidor ya desplegado, seguir [ACTUALIZACION-FASE1.md](ACTUALIZACION-FASE1.md); no repetir configuración inicial, bootstrap ni generación de claves. El contrato vigente está en [INTEGRACION-LICENCIAMIENTO.md](INTEGRACION-LICENCIAMIENTO.md).
 
 Esta guía prepara una primera instalación; no acredita un despliegue realizado. DNS, TLS, servicios y acceso remoto quedan a cargo del operador. El cliente se actualizará en una tarea separada. No habilitar clientes comerciales hasta terminar las comprobaciones de esta guía y distribuir de forma autenticada la clave pública de producción.
 

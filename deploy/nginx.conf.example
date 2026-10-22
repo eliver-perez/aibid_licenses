@@ -51,6 +51,17 @@ server {
     location ~ /\. { deny all; }
     location ~ \.php(?:/|$) { return 404; }
     location /assets/ { try_files $uri =404; }
+    # The unguessable document reference is not an authentication token; keep it out of access logs.
+    location ^~ /verify/ {
+        access_log off;
+        if (-f /srv/aidexlicense/shared/maintenance.flag) { return 503; }
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $document_root/index.php;
+        fastcgi_param HTTPS on;
+        fastcgi_pass unix:/run/php/aidexlicense.sock;
+        fastcgi_hide_header X-Powered-By;
+        fastcgi_read_timeout 60s;
+    }
     location / {
         if (-f /srv/aidexlicense/shared/maintenance.flag) { return 503; }
         include fastcgi_params;
