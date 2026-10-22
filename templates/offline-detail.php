@@ -13,7 +13,7 @@ $needsTransfer = $payload['action'] === 'activate' && $active !== null;
     <dl class="detail-grid">
         <div class="wide"><dt>ID de solicitud</dt><dd class="mono"><?= V::escape($payload['request_id']) ?></dd></div>
         <div><dt>Producto</dt><dd><?= V::escape($payload['product_id']) ?></dd></div>
-        <div><dt>Fecha declarada por el equipo</dt><dd class="mono"><?= V::escape($payload['created_at']) ?></dd></div>
+        <div><dt>Fecha declarada por el equipo</dt><dd class="mono"><?= V::escape(V::date($payload['created_at'])) ?></dd></div>
         <div class="wide"><dt>Instalación</dt><dd class="mono"><?= V::escape($payload['installation_id']) ?></dd></div>
         <div class="wide"><dt>Clave pública de instalación</dt><dd class="mono"><?= V::escape($payload['installation_public_key']) ?></dd></div>
         <div class="wide"><dt>Huella · versión <?= V::escape($payload['fingerprint_version']) ?></dt><dd class="mono"><?= V::escape($payload['fingerprint_hash']) ?></dd></div>
@@ -45,7 +45,7 @@ $needsTransfer = $payload['action'] === 'activate' && $active !== null;
     <h2><?= $needsTransfer?'Transferir y aprobar':'Autorizar solicitud' ?></h2>
     <?php if ($payload['action']==='renew' && $license['license_type']==='subscription'): ?>
         <label>Derechos a emitir<select class="form-select mt-2" name="renewal_mode"><option value="current">Emitir los derechos actuales</option><option value="extend">Registrar ampliación de suscripción</option></select></label>
-        <label>Nuevo vencimiento UTC <span class="optional">solo al ampliar</span><input class="form-control mt-2" type="datetime-local" name="until"></label>
+        <label>Nuevo vencimiento <?= V::TIMEZONE ?> <span class="optional">solo al ampliar</span><input class="form-control mt-2" type="datetime-local" name="until"></label>
         <label>Referencia comercial <span class="optional">obligatoria al ampliar</span><input class="form-control mt-2" name="reference" maxlength="190"></label>
     <?php else: ?><input type="hidden" name="renewal_mode" value="current"><?php endif; ?>
     <?php if ($payload['action']==='renew' && $license['license_type']==='perpetual'): ?><p class="small text-secondary">Se emitirá una nueva revisión con los derechos actuales. Registra cualquier compra de mantenimiento por separado en la licencia.</p><?php endif; ?>

@@ -2,10 +2,12 @@
 declare(strict_types=1);
 namespace Aibid\Http;
 
-use Aibid\Domain\Uuid;
+use Aibid\Domain\{Problem, Uuid};
 
 final class View
 {
+    public const TIMEZONE = 'America/Monterrey';
+
     public function render(string $name, array $data): void
     {
         extract($data, EXTR_SKIP);
@@ -28,7 +30,24 @@ final class View
 
     public static function date(?string $value): string
     {
-        return $value === null || $value === '' ? '—' : (new \DateTimeImmutable($value, new \DateTimeZone('UTC')))->format('d/m/Y · H:i') . ' UTC';
+        return $value === null || $value === '' ? '—' : (new \DateTimeImmutable($value, new \DateTimeZone('UTC')))->setTimezone(new \DateTimeZone(self::TIMEZONE))->format('d/m/Y · H:i') . ' ' . self::TIMEZONE;
+    }
+
+    public static function dateInput(\DateTimeInterface $instant): string
+    {
+        return \DateTimeImmutable::createFromInterface($instant)->setTimezone(new \DateTimeZone(self::TIMEZONE))->format('Y-m-d\TH:i');
+    }
+
+    /** Convert the panel's local wall time at the HTTP boundary; domain inputs remain UTC. */
+    public static function utcDateInput(string $value): string
+    {
+        $format = strlen($value) === 16 ? '!Y-m-d\TH:i' : '!Y-m-d\TH:i:s';
+        $date = \DateTimeImmutable::createFromFormat($format, $value, new \DateTimeZone(self::TIMEZONE));
+        $errors = \DateTimeImmutable::getLastErrors();
+        if (!$date || ($errors !== false && ($errors['warning_count'] || $errors['error_count'])) || $date->format(substr($format, 1)) !== $value) {
+            throw new Problem('Introduce una fecha válida en ' . self::TIMEZONE . '.');
+        }
+        return $date->setTimezone(new \DateTimeZone('UTC'))->format(substr($format, 1));
     }
 
     public static function role(string $role): string

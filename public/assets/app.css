@@ -162,6 +162,8 @@ summary { font-size: 12px; font-weight: 600; color: #466d9f; cursor: pointer; }
 .auth-brand-panel::after { content: ''; width: 400px; height: 400px; border: 1px solid #28415d; border-radius: 90px; position: absolute; right: -310px; bottom: 150px; transform: rotate(35deg); pointer-events: none; }
 .auth-logo { width: 100%; max-width: 560px; }
 .auth-intro { margin: auto 0; padding: 60px 0 70px; }
+.auth-login .auth-logo { max-width: 460px; align-self: center; }
+.auth-login .auth-intro { padding: 35px 0 50px; }
 .auth-intro h1 { color: #fff; font-size: clamp(35px, 3.8vw, 58px); letter-spacing: -.045em; line-height: 1.2; font-weight: 600; }
 .auth-intro > p { color: #99abc2; font-size: 14px; line-height: 1.9; max-width: 345px; margin: 28px 0 40px; }
 .auth-proof { display: flex; align-items: center; gap: 17px; color: #cbd7e7; font-size: 12px; }

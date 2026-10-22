@@ -33,12 +33,12 @@
             <div class="account-area"><span class="avatar"><?= V::escape(mb_strtoupper(mb_substr($actor->name, 0, 1))) ?></span><div class="account-name"><?= V::escape($actor->name) ?><small><?= V::escape(V::role($actor->role)) ?></small></div><form method="post" action="/logout"><?php V::fields($csrf); ?><button class="btn btn-sm btn-outline-secondary" type="submit">Salir</button></form></div>
         </header>
         <main id="main-content" class="main-content"><?= $content ?></main>
-        <footer class="workspace-footer">AIDEX · Administración de licencias <span>Fechas expresadas en UTC</span></footer>
+        <footer class="workspace-footer">AIDEX · Administración de licencias <span>Zona horaria: <?= V::TIMEZONE ?></span></footer>
     </div>
 <?php else: ?>
-    <main class="auth-shell">
-        <section class="auth-brand-panel"><img src="/assets/brand/logo-dark-h.svg" class="auth-logo" alt="AIDEX · Aplicación de Indexación Digital de Expedientes"><div class="auth-intro"><span class="eyebrow light">CONTROL DE LICENCIAS</span><h1>Cada licencia.<br>Cada derecho.<br>Todo en orden.</h1><p>Administra clientes, productos y vigencias desde un espacio privado y seguro.</p><div class="auth-proof"><span>01</span><div>Una instalación por licencia<small>Derechos claros, historial completo.</small></div></div></div><footer>AIDEX <span>Tu biblioteca digital, ordenada y al alcance.</span></footer></section>
-        <section class="auth-form-panel"><a href="/login" class="mobile-brand"><img src="/assets/brand/logo-h.svg" alt="AIDEX"></a><div class="auth-form-wrap"><?= $content ?></div><p class="auth-footnote">Acceso exclusivo para personal autorizado.</p></section>
+    <main class="auth-shell <?= $path === '/login' ? 'auth-login' : '' ?>">
+        <section class="auth-brand-panel"><img src="/assets/brand/<?= $path === '/login' ? 'logo-dark-v.svg' : 'logo-dark-h.svg' ?>" class="auth-logo" alt="AIDEX · Aplicación de Indexación Digital de Expedientes"><div class="auth-intro"><span class="eyebrow light">CONTROL DE LICENCIAS</span><h1><?php if ($path === '/login'): ?>Tu biblioteca digital,<br>ordenada y al alcance.<?php else: ?>Cada licencia.<br>Cada derecho.<br>Todo en orden.<?php endif; ?></h1><p>Administra clientes, productos y vigencias desde un espacio privado y seguro.</p><div class="auth-proof"><span>01</span><div>Una instalación por licencia<small>Derechos claros, historial completo.</small></div></div></div><footer>AIDEX <span>Tu biblioteca digital, ordenada y al alcance.</span></footer></section>
+        <section class="auth-form-panel"><a href="/login" class="mobile-brand"><img src="/assets/brand/<?= $path === '/login' ? 'logo-v.svg' : 'logo-h.svg' ?>" alt="AIDEX · Aplicación de Indexación Digital de Expedientes"></a><div class="auth-form-wrap"><?= $content ?></div><p class="auth-footnote">Acceso exclusivo para personal autorizado.</p></section>
     </main>
 <?php endif; ?>
 </body>

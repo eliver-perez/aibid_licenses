@@ -110,7 +110,7 @@ final class Kernel
                 $this->actor->requirePermission('documents.delivery');
                 if ($meta['credential_id']!==null) { $this->actor->requirePermission('credentials.reveal'); }
                 if ($meta['offline_revision_id']!==null) { $this->actor->requirePermission('offline.download'); }
-                if ($method==='GET') { $this->render('material-confirm',['title'=>'Descargar constancia de entrega']); return; }
+                if ($method==='GET') { $this->render('material-confirm',['title'=>'Descargar constancia de entrega para activación']); return; }
             }
             $document=$this->app->documents->download($this->actor,$matches[1],$this->password('password'),Input::text($_POST,'code',6,false));
             $this->download($document['bytes'],$document['filename'],'application/pdf'); return;
@@ -141,7 +141,9 @@ final class Kernel
                 $this->actor->requireRole(['superadmin','operator']);
                 $offlineAction=$this->app->read->offline($matches[1])['payload']['action'];
                 if ($matches[2] === 'approve' && (Input::text($_POST,'force_activation_id',36,false) !== '' || $offlineAction==='deactivate')) { $this->actor->requireRole(['superadmin']); $this->confirmIdentity(); }
-                $result = $this->app->offline->decide($this->actor,$operationId,$matches[1],$matches[2] === 'approve' ? 'approved' : 'rejected',$_POST);
+                $input = $_POST;
+                if ($matches[2] === 'approve' && ($input['renewal_mode'] ?? '') === 'extend') { $input['until'] = View::utcDateInput(Input::text($input,'until',19)); }
+                $result = $this->app->offline->decide($this->actor,$operationId,$matches[1],$matches[2] === 'approve' ? 'approved' : 'rejected',$input);
                 $this->redirect('/admin/offline/'.$result['id']); return;
             }
             if ($method === 'GET') {
@@ -184,7 +186,12 @@ final class Kernel
             $this->actor->requireRole(['superadmin', 'operator']);
             $this->render('license-form', ['title' => 'Emitir licencia', 'customers' => $this->app->read->customers(), 'products' => $this->app->read->products(), 'capabilities' => $this->app->read->capabilities()]); return;
         }
-        if ($this->path === '/admin/licenses/create' && $method === 'POST') { $this->licenseResult($this->app->licenses->issue($this->actor, $operationId, $_POST)); return; }
+        if ($this->path === '/admin/licenses/create' && $method === 'POST') {
+            $input = $_POST;
+            $field = Input::text($input,'license_type') === 'perpetual' ? 'entitled_release_until' : 'expires_at';
+            $input[$field] = View::utcDateInput(Input::text($input,$field,19));
+            $this->licenseResult($this->app->licenses->issue($this->actor, $operationId, $input)); return;
+        }
         if (preg_match('~^/admin/licenses/([a-f0-9-]{36})/revisions/([a-f0-9-]{36})/download$~', $this->path, $matches)) {
             $this->actor->requirePermission('offline.download');
             if ($method==='GET') { $this->render('material-confirm',['title'=>'Descargar archivo firmado']); return; }
@@ -194,7 +201,9 @@ final class Kernel
         if (preg_match('~^/admin/licenses/([a-f0-9-]{36})(?:/(features|renew|maintenance|reissue|revoke))?$~', $this->path, $matches)) {
             if ($method === 'POST' && isset($matches[2])) {
                 if (in_array($matches[2], ['revoke', 'reissue'], true)) { $this->confirmIdentity(); }
-                $this->licenseResult($this->app->licenses->change($this->actor, $operationId, $matches[1], $matches[2], $_POST)); return;
+                $input = $_POST;
+                if (in_array($matches[2], ['renew', 'maintenance'], true)) { $input['until'] = View::utcDateInput(Input::text($input,'until',19)); }
+                $this->licenseResult($this->app->licenses->change($this->actor, $operationId, $matches[1], $matches[2], $input)); return;
             }
             if ($method === 'GET' && !isset($matches[2])) {
                 $revisionPage=Input::text($_GET,'revision_page',8,false);

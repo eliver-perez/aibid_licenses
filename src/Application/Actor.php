@@ -10,7 +10,7 @@ final readonly class Actor
 
     public const PERMISSIONS = [
         'credentials.reveal'=>'Revelar códigos de activación',
-        'documents.delivery'=>'Generar y descargar constancias de activación',
+        'documents.delivery'=>'Generar y descargar constancias de entrega para activación',
         'offline.download'=>'Descargar archivos offline',
     ];
 

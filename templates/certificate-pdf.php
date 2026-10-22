@@ -2,7 +2,7 @@
 use Aibid\Http\View as V;
 $d = $document;
 $licensing = $d['type']==='licensing';
-$title = $licensing ? 'Constancia de licenciamiento' : 'Constancia de activación y entrega';
+$title = $licensing ? 'Constancia de licenciamiento' : 'Constancia de entrega para activación';
 ?>
 <!doctype html><html lang="es"><head><meta charset="utf-8"><title><?= $title ?></title>
 <style>
@@ -40,15 +40,15 @@ table { width: 100%; border-collapse: collapse; margin-top: 6pt; } th,td { borde
 <?php if ($d['activation_method']==='online'): ?>
 <p>Método: activación online con código y conexión al servidor de licencias.</p>
 <p class="code"><?= V::escape($d['activation_code']) ?></p>
-<p>Introduce el código en AIDEX, con o sin guiones. Completa la activación en la instalación autorizada. El código no sustituye el archivo firmado de una activación totalmente offline.</p>
+<p>Introduce el código en AIDEX, con o sin guiones. Completa la activación en la instalación autorizada. La entrega del código no confirma que la instalación esté activada. El código no sustituye el archivo firmado de una activación totalmente offline.</p>
 <?php else: ?>
 <p>Método: archivo firmado para activación offline. Instalación autorizada:<br><strong><?= V::escape($d['installation']) ?></strong></p>
-<p>Archivo: <?= V::escape($d['offline_filename']) ?><br>Revisión técnica: <?= (int)$d['license_revision'] ?> · Estado firmado: <?= V::escape($d['artifact_status']) ?></p>
+<p>Archivo: <?= V::escape($d['offline_filename']) ?><br>Revisión técnica: <?= (int)$d['license_revision'] ?> · Estado del archivo firmado: <?= V::escape($d['artifact_status']) ?></p>
 <p class="hash">SHA-256 del archivo:<br><?= V::escape($d['offline_sha256']) ?></p>
 <p>Importa el .lic en el equipo que creó la solicitud .licreq. Verifica firma Ed25519, producto, identidad y revisión. SHA-256 identifica el archivo; no sustituye su firma.</p>
 <?php endif; ?>
 <p class="notice">CONFIDENCIAL. Custodia el código o archivo y entrégalo solo al responsable autorizado por un canal seguro. Esta entrega histórica no acredita vigencia actual.</p>
 <?php endif; ?>
 <div class="verification"><img class="qr" src="<?= V::escape($qr) ?>" alt="Verificación de constancia"><h2>Verificación de autenticidad</h2><p>Verifica folio, revisión, estado y SHA-256 del PDF recibido en el sitio oficial del QR. Un QR copiado no valida otro contenido.</p><p style="font-size:7pt;word-wrap:break-word"><?= V::escape($d['verification_url']) ?></p></div>
-<div class="footer">AIDEX — Aplicación de Indexación Digital de Expedientes. Documento histórico: sus condiciones pueden cambiar. La autenticidad documental no acredita activación vigente. Fechas en UTC.</div>
+<div class="footer">AIDEX — Aplicación de Indexación Digital de Expedientes. Documento histórico: sus condiciones pueden cambiar. La autenticidad documental no acredita activación vigente. Zona horaria: <?= V::TIMEZONE ?>.</div>
 </body></html>
